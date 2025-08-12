@@ -37,6 +37,9 @@ dev = [
     "ruff>=0.12.8",
     "pre-commit>=3.0.0",
 ]
+orjson = [
+    "orjson>=3.9.0",
+]
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]

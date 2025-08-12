@@ -20,7 +20,14 @@ An async cache library for Pydantic models without FastAPI dependencies. This li
 ## Installation
 
 ```bash
+# Basic installation
 pip install pydantic-typed-cache
+
+# With orjson for faster JSON serialization
+pip install pydantic-typed-cache[orjson]
+
+# With development dependencies
+pip install pydantic-typed-cache[dev]
 ```
 
 ## Quick Start
@@ -198,26 +205,47 @@ async def cached_function():
 - Human-readable cache values
 - Good for debugging
 - Supports most Python types and Pydantic models
-- Smaller cache size
+- Moderate performance
+
+### OrjsonCoder (Recommended for performance)
+
+- **2-3x faster** than standard JSON
+- Efficient datetime handling
+- Better performance with large datasets
+- Requires: `pip install pydantic-typed-cache[orjson]`
+
+```python
+from pydantic_cache import OrjsonCoder
+
+PydanticCache.init(backend, coder=OrjsonCoder)
+```
 
 ### PickleCoder
 
 - Supports all Python objects
-- Faster serialization
+- Fast serialization
 - Binary format (not human-readable)
 - Better for complex nested structures
 
 ```python
-from pydantic_cache.coder import JsonCoder, PickleCoder
+from pydantic_cache.coder import JsonCoder, OrjsonCoder, PickleCoder
 
 # Set globally
-PydanticCache.init(backend, coder=PickleCoder)
+PydanticCache.init(backend, coder=OrjsonCoder)  # Recommended
 
 # Or per decorator
 @cache(coder=JsonCoder)
 async def my_function():
     pass
 ```
+
+### Performance Comparison
+
+| Coder | Speed | Human Readable | Size | Use Case |
+|-------|-------|----------------|------|----------|
+| JsonCoder | Moderate | ✅ | Small | Debugging, small data |
+| OrjsonCoder | Fast | ✅ | Small | Production, large data |
+| PickleCoder | Fast | ❌ | Medium | Complex objects |
 
 ## Cache Management
 

@@ -139,3 +139,50 @@ class PickleCoder(Coder):
     def decode_as_type(cls, value: bytes, *, type_: _T | None) -> Any:
         # Pickle already produces the correct type on decoding
         return cls.decode(value)
+
+
+class OrjsonCoder(Coder):
+    """Fast JSON coder using orjson library.
+
+    Requires: pip install pydantic-typed-cache[orjson]
+    """
+
+    @classmethod
+    def encode(cls, value: Any) -> bytes:
+        try:
+            import orjson
+        except ImportError as e:
+            raise ImportError(
+                "OrjsonCoder requires orjson to be installed. "
+                "Install it with: pip install pydantic-typed-cache[orjson]"
+            ) from e
+
+        # orjson handles Pydantic models, datetime, etc. automatically
+        # But we need special handling for None to distinguish from cache miss
+        if value is None:
+            return orjson.dumps({"_spec_type": "none"})
+
+        # Convert Pydantic models to dict for consistent serialization
+        if isinstance(value, BaseModel):
+            return orjson.dumps(value.model_dump())
+
+        return orjson.dumps(value)
+
+    @classmethod
+    def decode(cls, value: bytes) -> Any:
+        try:
+            import orjson
+        except ImportError as e:
+            raise ImportError(
+                "OrjsonCoder requires orjson to be installed. "
+                "Install it with: pip install pydantic-typed-cache[orjson]"
+            ) from e
+
+        # orjson.loads returns dict directly (not str)
+        data = orjson.loads(value)
+
+        # Handle our special None encoding
+        if isinstance(data, dict) and data.get("_spec_type") == "none":
+            return None
+
+        return data

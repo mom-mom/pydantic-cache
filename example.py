@@ -250,6 +250,56 @@ async def example_type_conversion():
     print(f"String '789' converted to Optional[int]: {optional_value}, type: {type(optional_value).__name__}")
 
 
+async def example_orjson_coder():
+    """Example using OrjsonCoder for faster JSON serialization."""
+    try:
+        from pydantic_cache import OrjsonCoder
+    except ImportError:
+        print("OrjsonCoder requires orjson: pip install pydantic-typed-cache[orjson]")
+        return
+
+    backend = InMemoryBackend()
+    PydanticCache.init(backend, prefix="orjson_example", expire=60, coder=OrjsonCoder)
+
+    class DataModel(BaseModel):
+        id: int
+        values: list[float]
+        metadata: dict[str, any]
+        timestamp: str | None = None
+
+    @cache(namespace="data")
+    async def get_large_dataset(size: int) -> list[DataModel]:
+        """Generate a large dataset to showcase orjson performance."""
+        print(f"Generating dataset with {size} items...")
+        import time
+
+        return [
+            DataModel(
+                id=i,
+                values=[i * 0.1, i * 0.2, i * 0.3],
+                metadata={"index": i, "type": "sample"},
+                timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
+            )
+            for i in range(size)
+        ]
+
+    # First call - cache miss
+    print("Fetching large dataset (cache miss)...")
+    data = await get_large_dataset(100)
+    print(f"Got {len(data)} items")
+
+    # Second call - cache hit (fast with orjson)
+    print("Fetching large dataset (cache hit - using orjson)...")
+    data_cached = await get_large_dataset(100)
+    print(f"Got {len(data_cached)} items from cache")
+
+    # OrjsonCoder is particularly efficient for:
+    # - Large datasets
+    # - Nested structures
+    # - Datetime serialization
+    # - High-frequency caching operations
+
+
 if __name__ == "__main__":
     print("=" * 50)
     print("In-Memory Backend Example")
@@ -270,6 +320,11 @@ if __name__ == "__main__":
     print("Type Conversion Example")
     print("=" * 50)
     asyncio.run(example_type_conversion())
+
+    print("\n" + "=" * 50)
+    print("OrjsonCoder Example")
+    print("=" * 50)
+    asyncio.run(example_orjson_coder())
 
     # Uncomment to test Redis backend (requires Redis server)
     # print("\n" + "=" * 50)
