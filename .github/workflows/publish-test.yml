@@ -1,22 +1,24 @@
-name: Publish Python 🐍 distribution 📦 to PyPI
+name: Publish Python 🐍 distribution 📦 to TestPyPI
 
 on:
-  release:
-    types: [published]
   push:
-    tags:
-      - 'v*'  # v0.1.0, v1.0.0 등의 태그에 반응
+    branches:
+      - main
+    paths:
+      - 'pyproject.toml'
+      - 'pydantic_cache/**'
+  workflow_dispatch:  # 수동으로 실행 가능
 
 permissions:
   id-token: write  # OIDC 인증에 필수
   contents: read
 
 jobs:
-  build-and-publish:
+  build-and-test-publish:
     runs-on: ubuntu-latest
     environment:
-      name: pypi  # PyPI의 Trusted Publisher 설정과 일치해야 함
-      url: https://pypi.org/p/pydantic-typed-cache
+      name: testpypi  # TestPyPI의 Trusted Publisher 설정과 일치해야 함
+      url: https://test.pypi.org/p/pydantic-typed-cache
     
     steps:
     - uses: actions/checkout@v4
@@ -34,7 +36,7 @@ jobs:
     - name: Build package
       run: python -m build
     
-    - name: Publish distribution 📦 to PyPI
+    - name: Publish distribution 📦 to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
-      # with:
-      #   repository-url: https://test.pypi.org/legacy/  # TestPyPI로 테스트할 때 주석 해제
+      with:
+        repository-url: https://test.pypi.org/legacy/
