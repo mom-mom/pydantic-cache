@@ -3,7 +3,7 @@ from pydantic_cache.decorator import cache
 from pydantic_cache.key_builder import default_key_builder
 from pydantic_cache.types import Backend, KeyBuilder
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 __all__ = [
     "Backend",
