@@ -36,6 +36,7 @@ class TestNoneEdgeCases:
     @pytest.mark.asyncio
     async def test_none_vs_cache_miss_with_orjson_coder(self, cache_setup):
         """Test that None values are properly distinguished from cache misses with OrjsonCoder."""
+        pytest.importorskip("orjson")
         call_count = 0
 
         @cache(namespace="none_test_orjson", coder=OrjsonCoder())
@@ -74,6 +75,7 @@ class TestNoneEdgeCases:
 
     def test_none_encoding_decoding_orjson(self):
         """Test that None is properly encoded/decoded with JSON null."""
+        pytest.importorskip("orjson")
         coder = OrjsonCoder()
 
         # Test None encoding
@@ -93,7 +95,6 @@ class TestNoneEdgeCases:
     def test_none_in_collections(self):
         """Test None values inside collections are handled correctly."""
         json_coder = JsonCoder()
-        orjson_coder = OrjsonCoder()
 
         test_data = [
             {"key": None, "other": "value"},
@@ -111,7 +112,18 @@ class TestNoneEdgeCases:
             else:
                 assert decoded == data
 
-            # Test OrjsonCoder
+    def test_none_in_collections_orjson(self):
+        """Test None values inside collections are handled correctly with OrjsonCoder."""
+        pytest.importorskip("orjson")
+        orjson_coder = OrjsonCoder()
+
+        test_data = [
+            {"key": None, "other": "value"},
+            [None, 1, 2, None],
+            (None, "test"),
+        ]
+
+        for data in test_data:
             encoded = orjson_coder.encode(data)
             decoded = orjson_coder.decode(encoded)
             # Tuples become lists in JSON
