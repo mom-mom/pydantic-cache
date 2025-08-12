@@ -90,7 +90,7 @@ def cache(
                     f"Error retrieving cache key '{cache_key}' from backend:",
                     exc_info=True,
                 )
-                ttl, cached = 0, CACHE_MISS
+                cached = CACHE_MISS
 
             if cached is CACHE_MISS:  # cache miss
                 result = await ensure_async_func(*args, **kwargs)

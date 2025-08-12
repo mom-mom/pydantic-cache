@@ -102,9 +102,8 @@ class Coder:
 
             # If type_ is a Pydantic BaseModel, try to parse it
             try:
-                if isinstance(type_, type) and issubclass(type_, BaseModel):
-                    if isinstance(result, dict):
-                        return type_.model_validate(result)  # type: ignore
+                if isinstance(type_, type) and issubclass(type_, BaseModel) and isinstance(result, dict):
+                    return type_.model_validate(result)  # type: ignore
             except Exception:
                 pass
 

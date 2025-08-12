@@ -17,6 +17,7 @@ dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "ruff>=0.12.8",
+    "pre-commit>=3.0.0",
 ]
 
 [build-system]
@@ -50,6 +51,7 @@ select = [
 ]
 ignore = [
     "PLR0913",  # Too many arguments
+    "PLR0911",  # Too many return statements
     "PLR2004",  # Magic value used in comparison
     "SIM108",   # Use ternary operator
 ]
@@ -64,4 +66,16 @@ line-ending = "auto"
 known-first-party = ["pydantic_cache"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "S324"]  # Allow assert and hashlib.md5 in tests
+"tests/*" = [
+    "S101",   # Allow assert in tests
+    "S324",   # Allow hashlib.md5 in tests
+    "DTZ001", # Allow datetime without timezone in tests
+    "DTZ005", # Allow datetime.now() without tz in tests
+    "F841",   # Allow unused variables in tests (for testing side effects)
+    "SIM116", # Allow consecutive if statements in tests
+    "UP038",  # Allow legacy isinstance in tests
+]
+"example.py" = [
+    "ERA001", # Allow commented code in examples
+    "PLC0415", # Allow import at module level in examples
+]

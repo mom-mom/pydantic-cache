@@ -49,7 +49,7 @@ class InMemoryBackend(Backend):
             return 0
 
         if namespace:
-            keys_to_delete = [k for k in self._cache.keys() if k.startswith(f"{namespace}:")]
+            keys_to_delete = [k for k in self._cache if k.startswith(f"{namespace}:")]
             for k in keys_to_delete:
                 del self._cache[k]
             return len(keys_to_delete)
