@@ -11,6 +11,8 @@ from typing import (
     get_type_hints,
 )
 
+from pydantic import BaseModel
+
 from pydantic_cache.coder import Coder
 from pydantic_cache.sentinel import CACHE_MISS
 from pydantic_cache.types import KeyBuilder
@@ -26,6 +28,7 @@ def cache(
     coder: type[Coder] | None = None,
     key_builder: KeyBuilder | None = None,
     namespace: str = "",
+    model: type[BaseModel] | None = None,
 ) -> Callable[[Callable[P, Awaitable[R]]], Callable[P, Awaitable[R]]]:
     """
     Cache decorator for async functions
@@ -33,16 +36,20 @@ def cache(
     :param expire: cache expiration time in seconds
     :param coder: encoder/decoder for cache values
     :param key_builder: function to build cache keys
+    :param model: optional Pydantic model to force conversion of cached values
     :return: decorated function
     """
 
     def wrapper(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
-        # Get return type hint if available
-        try:
-            type_hints = get_type_hints(func)
-            return_type = type_hints.get("return", None)
-        except Exception:
-            return_type = None
+        # Get return type hint if available, or use model if specified
+        if model is not None:
+            return_type = model
+        else:
+            try:
+                type_hints = get_type_hints(func)
+                return_type = type_hints.get("return", None)
+            except Exception:
+                return_type = None
 
         @wraps(func)
         async def inner(*args: P.args, **kwargs: P.kwargs) -> R:
@@ -94,6 +101,24 @@ def cache(
 
             if cached is CACHE_MISS:  # cache miss
                 result = await ensure_async_func(*args, **kwargs)
+
+                # If model is specified, convert result to model before caching
+                if model is not None and result is not None:
+                    try:
+                        if isinstance(result, dict):
+                            result = model.model_validate(result)
+                        elif isinstance(result, BaseModel):
+                            # Convert one Pydantic model to another
+                            result = model.model_validate(result.model_dump())
+                        elif not isinstance(result, model):
+                            # Try to convert if it's not already the model type
+                            result = model.model_validate(result)
+                    except Exception:
+                        # Keep original result if conversion fails
+                        logger.debug(
+                            f"Failed to convert result to {model.__name__}, keeping original type", exc_info=True
+                        )
+
                 to_cache = coder.encode(result)
 
                 try:

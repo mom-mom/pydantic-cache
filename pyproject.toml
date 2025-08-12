@@ -74,8 +74,13 @@ known-first-party = ["pydantic_cache"]
     "F841",   # Allow unused variables in tests (for testing side effects)
     "SIM116", # Allow consecutive if statements in tests
     "UP038",  # Allow legacy isinstance in tests
+    "PLC0415", # Allow imports at function level in tests
 ]
 "example.py" = [
     "ERA001", # Allow commented code in examples
     "PLC0415", # Allow import at module level in examples
+]
+"pydantic_cache/decorator.py" = [
+    "PLC0415", # Allow late import to avoid circular dependencies
+    "PLR0915", # Allow many statements in decorator functions
 ]

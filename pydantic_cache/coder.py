@@ -1,6 +1,7 @@
 import datetime
 import json
 import pickle  # nosec:B403
+import types
 from collections.abc import Callable
 from decimal import Decimal
 from typing import (
@@ -84,9 +85,10 @@ class Coder:
         result = cls.decode(value)
 
         if type_ is not None:
-            # Handle Optional types (Union[X, None])
+            # Handle Optional types (Union[X, None] or X | None)
             origin = get_origin(type_)
-            if origin is Union:
+            # Check for both typing.Union and types.UnionType (Python 3.10+ with | operator)
+            if origin is Union or origin is types.UnionType:
                 # Get the non-None type from Optional
                 args = get_args(type_)
                 # Filter out NoneType

@@ -123,6 +123,72 @@ async def example_sync_function():
     print(f"Second call result (cached): {result}")
 
 
+# Example with model override
+async def example_model_override():
+    backend = InMemoryBackend()
+    PydanticCache.init(backend, prefix="model_override", expire=60)
+
+    # Define response models
+    class UserResponse(BaseModel):
+        id: int
+        username: str
+        email: str
+        full_name: str | None = None
+
+    class APIResponse(BaseModel):
+        status: str
+        data: dict
+        timestamp: str | None = None
+
+    # Force dict return to be converted to UserResponse
+    @cache(namespace="users", model=UserResponse)
+    async def get_user_from_api(user_id: int) -> dict:
+        """Simulates getting raw dict from an API."""
+        print(f"Fetching user {user_id} from API...")
+        await asyncio.sleep(0.5)
+        # Returns a raw dict
+        return {
+            "id": user_id,
+            "username": f"user_{user_id}",
+            "email": f"user{user_id}@api.example.com",
+            "full_name": f"User Number {user_id}",
+        }
+
+    # Force any return to be converted to APIResponse
+    @cache(namespace="api", model=APIResponse)
+    async def fetch_api_data(endpoint: str) -> dict:
+        """Simulates fetching data from an API endpoint."""
+        print(f"Fetching data from {endpoint}...")
+        await asyncio.sleep(0.5)
+        return {
+            "status": "success",
+            "data": {"endpoint": endpoint, "result": "sample data"},
+            "timestamp": "2024-01-01T12:00:00Z",
+        }
+
+    # Test model override with dict -> UserResponse
+    print("First call (cache miss) - returns UserResponse:")
+    user = await get_user_from_api(1)
+    print(f"Type: {type(user).__name__}, Data: {user}")
+    assert isinstance(user, UserResponse)
+
+    print("\nSecond call (cache hit) - still UserResponse:")
+    user_cached = await get_user_from_api(1)
+    print(f"Type: {type(user_cached).__name__}, Data: {user_cached}")
+    assert isinstance(user_cached, UserResponse)
+
+    # Test with APIResponse
+    print("\nAPI call (cache miss) - returns APIResponse:")
+    api_data = await fetch_api_data("/users")
+    print(f"Type: {type(api_data).__name__}, Status: {api_data.status}")
+    assert isinstance(api_data, APIResponse)
+
+    print("\nAPI call (cache hit) - still APIResponse:")
+    api_data_cached = await fetch_api_data("/users")
+    print(f"Type: {type(api_data_cached).__name__}, Status: {api_data_cached.status}")
+    assert isinstance(api_data_cached, APIResponse)
+
+
 if __name__ == "__main__":
     print("=" * 50)
     print("In-Memory Backend Example")
@@ -133,6 +199,11 @@ if __name__ == "__main__":
     print("Sync Function Example")
     print("=" * 50)
     asyncio.run(example_sync_function())
+
+    print("\n" + "=" * 50)
+    print("Model Override Example")
+    print("=" * 50)
+    asyncio.run(example_model_override())
 
     # Uncomment to test Redis backend (requires Redis server)
     # print("\n" + "=" * 50)
