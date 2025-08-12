@@ -7,6 +7,7 @@ import pytest
 from pydantic import BaseModel
 
 from pydantic_cache import JsonCoder, OrjsonCoder
+from pydantic_cache.coder import JsonEncoder
 
 
 class TestModel(BaseModel):
@@ -119,13 +120,14 @@ class TestCoderConsistency:
             def __init__(self, value):
                 self.value = value
 
-        def custom_default(obj):
-            if isinstance(obj, CustomType):
-                return {"custom": obj.value}
-            raise TypeError
+        class CustomEncoder(JsonEncoder):
+            def default(self, obj):
+                if isinstance(obj, CustomType):
+                    return {"custom": obj.value}
+                return super().default(obj)
 
-        json_coder = JsonCoder(default=custom_default)
-        orjson_coder = OrjsonCoder(default=custom_default)
+        json_coder = JsonCoder(encoder_class=CustomEncoder)
+        orjson_coder = OrjsonCoder(encoder_class=CustomEncoder)
 
         # Test encoding and decoding
         custom_obj = CustomType("test_value")

@@ -1,7 +1,6 @@
 import json
 import pickle  # nosec:B403
 import types
-from collections.abc import Callable
 from typing import (
     Any,
     TypeVar,
@@ -15,6 +14,29 @@ from pydantic import BaseModel
 from pydantic_core import to_jsonable_python
 
 _T = TypeVar("_T", bound=type)
+
+
+class JsonEncoder(json.JSONEncoder):
+    """Custom JSON encoder that handles Pydantic models and other special types.
+
+    This can be subclassed to add custom serialization logic while preserving
+    the default handling for BaseModel and other types.
+    """
+
+    def default(self, obj: Any) -> Any:
+        """Default handler for non-serializable types."""
+        # Handle Pydantic models
+        if isinstance(obj, BaseModel):
+            return obj.model_dump()
+
+        # Try pydantic_core conversion
+        try:
+            return to_jsonable_python(obj)
+        except TypeError:
+            pass
+
+        # Fall back to parent class default (will raise TypeError)
+        return super().default(obj)
 
 
 class Coder:
@@ -84,44 +106,22 @@ class JsonCoder(Coder):
     by TypeAdapter when type hints are available on the cached function.
     """
 
-    def __init__(self, default: Callable[[Any], Any] | None = None):
-        """Initialize JsonCoder with optional custom default handler.
+    def __init__(self, encoder_class: type[json.JSONEncoder] | None = None):
+        """Initialize JsonCoder with optional custom encoder class.
 
         Args:
-            default: Function to handle non-serializable types. If not provided,
-                    uses pydantic's to_jsonable_python for conversion.
+            encoder_class: Custom JSONEncoder subclass. If not provided,
+                          uses the default JsonEncoder class.
         """
-        self.custom_default = default
-
-    def handle_default(self, obj: Any) -> Any:
-        """Default handler for non-serializable types."""
-        # First try custom handler if provided
-        if self.custom_default is not None:
-            try:
-                return self.custom_default(obj)
-            except TypeError:
-                pass  # Fall through to built-in handling
-
-        # Handle Pydantic models
-        if isinstance(obj, BaseModel):
-            return obj.model_dump()
-
-        # Try pydantic_core conversion
-        try:
-            return to_jsonable_python(obj)
-        except TypeError:
-            pass
-
-        # Let orjson handle the error
-        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+        self.encoder_class = encoder_class or JsonEncoder
 
     def encode(self, value: Any) -> bytes:
         # Use actual JSON null for None values
         if value is None:
             return b"null"
 
-        # Convert to JSON with custom default or pydantic's converter
-        return json.dumps(value, default=self.handle_default).encode()
+        # Convert to JSON with the encoder class
+        return json.dumps(value, cls=self.encoder_class).encode()
 
     def decode(self, value: bytes) -> Any:
         # JSON null becomes None automatically
@@ -160,15 +160,16 @@ class OrjsonCoder(JsonCoder):
     Requires: pip install pydantic-typed-cache[orjson]
     """
 
-    def __init__(self, default: Callable[[Any], Any] | None = None, option: int | None = None):
-        """Initialize OrjsonCoder with optional custom default function.
+    def __init__(self, encoder_class: type[json.JSONEncoder] | None = None, option: int | None = None):
+        """Initialize OrjsonCoder with optional custom encoder class.
 
         Args:
-            default: Function to handle non-serializable types. If not provided,
-                    uses pydantic's to_jsonable_python for conversion.
+            encoder_class: Custom JSONEncoder subclass. If not provided,
+                          uses the default JsonEncoder class.
             option: orjson options flags (e.g., orjson.OPT_INDENT_2)
         """
-        super().__init__(default)
+        super().__init__(encoder_class)
+        self.encoder = self.encoder_class()
         self.option = option
         self._orjson = None  # Lazy import
 
@@ -194,7 +195,7 @@ class OrjsonCoder(JsonCoder):
             return b"null"
 
         # Use orjson with default handler
-        return orjson.dumps(value, default=self.handle_default, option=self.option)
+        return orjson.dumps(value, default=self.encoder.default, option=self.option)
 
     def decode(self, value: bytes) -> Any:
         orjson = self._ensure_orjson()

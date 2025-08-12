@@ -1,6 +1,7 @@
 import pytest
 
 from pydantic_cache import OrjsonCoder
+from pydantic_cache.coder import JsonEncoder
 
 
 class CustomId:
@@ -16,11 +17,13 @@ class CustomId:
         return isinstance(other, CustomId) and self.value == other.value
 
 
-def handle_custom_id(obj):
-    """Custom handler for CustomId objects."""
-    if isinstance(obj, CustomId):
-        return str(obj)
-    raise TypeError
+class CustomIdEncoder(JsonEncoder):
+    """Custom encoder for CustomId objects."""
+
+    def default(self, obj):
+        if isinstance(obj, CustomId):
+            return str(obj)
+        return super().default(obj)
 
 
 @pytest.mark.asyncio
@@ -28,8 +31,8 @@ async def test_custom_orjson_coder():
     """Test that custom OrjsonCoder can handle non-JSON serializable types."""
     pytest.importorskip("orjson")
 
-    # Create an OrjsonCoder with custom handler
-    custom_coder = OrjsonCoder(default=handle_custom_id)
+    # Create an OrjsonCoder with custom encoder class
+    custom_coder = OrjsonCoder(encoder_class=CustomIdEncoder)
 
     # Test with a CustomId object
     custom_id = CustomId("abc123")
@@ -70,7 +73,7 @@ async def test_custom_coder_with_cache_decorator():
     backend = InMemoryBackend()
     PydanticCache.init(backend=backend)
 
-    @cache(expire=60, coder=OrjsonCoder(default=handle_custom_id))
+    @cache(expire=60, coder=OrjsonCoder(encoder_class=CustomIdEncoder))
     async def get_custom_object(obj_id: str) -> dict:
         return {"id": CustomId(obj_id), "name": f"Object {obj_id}"}
 

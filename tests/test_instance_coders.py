@@ -7,6 +7,7 @@ import pytest
 from pydantic import BaseModel
 
 from pydantic_cache import JsonCoder, OrjsonCoder, PickleCoder
+from pydantic_cache.coder import JsonEncoder
 
 
 class CustomModel(BaseModel):
@@ -25,6 +26,18 @@ def custom_default(obj):
     raise TypeError
 
 
+class CustomJsonEncoderClass(JsonEncoder):
+    """Custom encoder class that extends JsonEncoder."""
+
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)  # Convert to float instead of string
+        if isinstance(obj, CustomModel):
+            return {"custom_id": obj.id, "custom_value": obj.value}
+        # Fall back to parent class
+        return super().default(obj)
+
+
 def custom_object_hook(obj):
     """Custom object hook for decoding."""
     if "custom_id" in obj and "custom_value" in obj:
@@ -35,9 +48,9 @@ def custom_object_hook(obj):
 class TestInstanceBasedCoders:
     """Test suite for instance-based coder features."""
 
-    def test_json_coder_with_custom_default(self):
-        """Test JsonCoder with custom default function."""
-        coder = JsonCoder(default=custom_default)
+    def test_json_coder_with_custom_encoder_class(self):
+        """Test JsonCoder with custom encoder class."""
+        coder = JsonCoder(encoder_class=CustomJsonEncoderClass)
 
         # Test Decimal encoding
         dec = Decimal("123.45")
@@ -51,9 +64,9 @@ class TestInstanceBasedCoders:
         decoded_data = json.loads(encoded)
         assert decoded_data == {"custom_id": "test", "custom_value": 42}
 
-    def test_json_coder_with_custom_default_only(self):
-        """Test JsonCoder with custom default function (object_hook removed)."""
-        coder = JsonCoder(default=custom_default)
+    def test_json_coder_with_custom_encoder_dict_output(self):
+        """Test JsonCoder with custom encoder that outputs dict."""
+        coder = JsonCoder(encoder_class=CustomJsonEncoderClass)
 
         model = CustomModel(id="test", value=42)
         encoded = coder.encode(model)
@@ -64,20 +77,21 @@ class TestInstanceBasedCoders:
         assert decoded["custom_id"] == "test"
         assert decoded["custom_value"] == 42
 
-    def test_orjson_coder_with_custom_default(self):
-        """Test OrjsonCoder with custom default function."""
+    def test_orjson_coder_with_custom_encoder(self):
+        """Test OrjsonCoder with custom encoder class."""
         pytest.importorskip("orjson")
 
         class CustomType:
             def __init__(self, name: str):
                 self.name = name
 
-        def handle_custom(obj):
-            if isinstance(obj, CustomType):
-                return {"type": "custom", "name": obj.name}
-            raise TypeError
+        class CustomOrjsonEncoder(JsonEncoder):
+            def default(self, obj):
+                if isinstance(obj, CustomType):
+                    return {"type": "custom", "name": obj.name}
+                return super().default(obj)
 
-        coder = OrjsonCoder(default=handle_custom)
+        coder = OrjsonCoder(encoder_class=CustomOrjsonEncoder)
 
         # Test custom type encoding
         custom = CustomType("test")
@@ -110,7 +124,7 @@ class TestInstanceBasedCoders:
     def test_coder_instances_are_independent(self):
         """Test that different coder instances are independent."""
         coder1 = JsonCoder()
-        coder2 = JsonCoder(default=custom_default)
+        coder2 = JsonCoder(encoder_class=CustomJsonEncoderClass)
 
         dec = Decimal("99.99")
 
@@ -137,8 +151,8 @@ class TestInstanceBasedCoders:
 
         call_count = 0
 
-        # Use custom JsonCoder instance
-        custom_coder = JsonCoder(default=custom_default)
+        # Use custom JsonCoder instance with encoder class
+        custom_coder = JsonCoder(encoder_class=CustomJsonEncoderClass)
 
         @cache(coder=custom_coder)
         async def get_decimal_value() -> Decimal:
@@ -164,12 +178,13 @@ class TestInstanceBasedCoders:
             def __init__(self, val):
                 self.val = val
 
-        def handle_special(obj):
-            if isinstance(obj, SpecialValue):
-                return f"special:{obj.val}"
-            raise TypeError
+        class SpecialEncoder(JsonEncoder):
+            def default(self, obj):
+                if isinstance(obj, SpecialValue):
+                    return f"special:{obj.val}"
+                return super().default(obj)
 
-        coder = OrjsonCoder(default=handle_special)
+        coder = OrjsonCoder(encoder_class=SpecialEncoder)
 
         # Deep nested structure
         data = {
