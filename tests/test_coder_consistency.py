@@ -62,9 +62,16 @@ class TestCoderConsistency:
                 assert json_decoded["id"] == orjson_decoded["id"]
                 assert json_decoded["name"] == orjson_decoded["name"]
             elif key in ["datetime", "date", "decimal"]:
-                # These types are preserved through our special encoding
-                assert type(json_decoded) is type(orjson_decoded)
-                assert str(json_decoded) == str(orjson_decoded)
+                # Without type hints, these become strings
+                assert isinstance(json_decoded, str)
+                assert isinstance(orjson_decoded, str)
+                # Values should be similar (though format might differ slightly)
+                if key == "decimal":
+                    assert json_decoded == orjson_decoded
+                else:
+                    # Date/datetime strings contain the date
+                    assert "2024-01-01" in json_decoded
+                    assert "2024-01-01" in orjson_decoded
             else:
                 assert json_decoded == orjson_decoded
 
@@ -95,8 +102,11 @@ class TestCoderConsistency:
                 assert orjson_decoded["id"] == json_original["id"]
                 assert json_decoded["id"] == orjson_original["id"]
             elif key in ["datetime", "date", "decimal"]:
-                assert type(orjson_decoded) is type(json_original)
-                assert type(json_decoded) is type(orjson_original)
+                # All should be strings without type hints
+                assert isinstance(orjson_decoded, str)
+                assert isinstance(json_decoded, str)
+                assert isinstance(json_original, str)
+                assert isinstance(orjson_original, str)
             else:
                 assert orjson_decoded == json_original
                 assert json_decoded == orjson_original
@@ -114,13 +124,8 @@ class TestCoderConsistency:
                 return {"custom": obj.value}
             raise TypeError
 
-        def custom_hook(obj):
-            if isinstance(obj, dict) and "custom" in obj:
-                return CustomType(obj["custom"])
-            return obj
-
-        json_coder = JsonCoder(default=custom_default, object_hook=custom_hook)
-        orjson_coder = OrjsonCoder(default=custom_default, object_hook=custom_hook)
+        json_coder = JsonCoder(default=custom_default)
+        orjson_coder = OrjsonCoder(default=custom_default)
 
         # Test encoding and decoding
         custom_obj = CustomType("test_value")
@@ -131,11 +136,11 @@ class TestCoderConsistency:
         json_decoded = json_coder.decode(json_encoded)
         orjson_decoded = orjson_coder.decode(orjson_encoded)
 
-        # Both should return CustomType objects
-        assert isinstance(json_decoded, CustomType)
-        assert isinstance(orjson_decoded, CustomType)
-        assert json_decoded.value == "test_value"
-        assert orjson_decoded.value == "test_value"
+        # Without object_hook, both return dicts
+        assert isinstance(json_decoded, dict)
+        assert isinstance(orjson_decoded, dict)
+        assert json_decoded["custom"] == "test_value"
+        assert orjson_decoded["custom"] == "test_value"
 
     def test_nested_special_types(self):
         """Test that nested special types are handled consistently."""
@@ -159,14 +164,17 @@ class TestCoderConsistency:
         json_decoded = json_coder.decode(json_encoded)
         orjson_decoded = orjson_coder.decode(orjson_encoded)
 
-        # Check dates
-        assert all(isinstance(d, datetime.date) for d in json_decoded["dates"])
-        assert all(isinstance(d, datetime.date) for d in orjson_decoded["dates"])
+        # Without type hints, dates become strings
+        assert all(isinstance(d, str) for d in json_decoded["dates"])
+        assert all(isinstance(d, str) for d in orjson_decoded["dates"])
+        assert json_decoded["dates"][0] == "2024-01-01"
 
-        # Check decimals
-        assert isinstance(json_decoded["decimals"]["price1"], Decimal)
-        assert isinstance(orjson_decoded["decimals"]["price1"], Decimal)
+        # Without type hints, decimals become strings
+        assert isinstance(json_decoded["decimals"]["price1"], str)
+        assert isinstance(orjson_decoded["decimals"]["price1"], str)
+        assert json_decoded["decimals"]["price1"] == "10.50"
 
-        # Check mixed
-        assert isinstance(json_decoded["mixed"]["datetime"], datetime.datetime)
-        assert isinstance(orjson_decoded["mixed"]["datetime"], datetime.datetime)
+        # Without type hints, datetime becomes string
+        assert isinstance(json_decoded["mixed"]["datetime"], str)
+        assert isinstance(orjson_decoded["mixed"]["datetime"], str)
+        assert "2024-01-01" in json_decoded["mixed"]["datetime"]

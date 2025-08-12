@@ -51,18 +51,18 @@ class TestInstanceBasedCoders:
         decoded_data = json.loads(encoded)
         assert decoded_data == {"custom_id": "test", "custom_value": 42}
 
-    def test_json_coder_with_custom_object_hook(self):
-        """Test JsonCoder with custom object hook."""
-        coder = JsonCoder(default=custom_default, object_hook=custom_object_hook)
+    def test_json_coder_with_custom_default_only(self):
+        """Test JsonCoder with custom default function (object_hook removed)."""
+        coder = JsonCoder(default=custom_default)
 
         model = CustomModel(id="test", value=42)
         encoded = coder.encode(model)
         decoded = coder.decode(encoded)
 
-        # Should decode back to CustomModel
-        assert isinstance(decoded, CustomModel)
-        assert decoded.id == "test"
-        assert decoded.value == 42
+        # Without object_hook, should decode to dict with custom fields
+        assert isinstance(decoded, dict)
+        assert decoded["custom_id"] == "test"
+        assert decoded["custom_value"] == 42
 
     def test_orjson_coder_with_custom_default(self):
         """Test OrjsonCoder with custom default function."""
@@ -117,8 +117,8 @@ class TestInstanceBasedCoders:
         # coder1 should encode Decimal as string (default)
         encoded1 = coder1.encode(dec)
         decoded1 = coder1.decode(encoded1)
-        assert isinstance(decoded1, Decimal)
-        assert decoded1 == dec
+        assert isinstance(decoded1, str)
+        assert decoded1 == "99.99"
 
         # coder2 should encode Decimal as float (custom)
         encoded2 = coder2.encode(dec)

@@ -64,16 +64,14 @@ class TestOrjsonCoder:
     def test_encode_decode_datetime(self):
         """Test encoding and decoding of datetime objects."""
         coder = OrjsonCoder()
-        # Now properly preserves datetime type like JsonCoder
         now = datetime.datetime.now()
         encoded = coder.encode(now)
         decoded = coder.decode(encoded)
-        # Should be preserved as datetime, not string
-        assert isinstance(decoded, datetime.datetime)
-        # Pendulum may add timezone, so compare the base values
-        assert decoded.year == now.year
-        assert decoded.month == now.month
-        assert decoded.day == now.day
+        # Without type hints, datetime becomes ISO string
+        assert isinstance(decoded, str)
+        # Check that the string contains the date parts
+        assert str(now.year) in decoded
+        assert now.isoformat().startswith(decoded[:19])
 
     def test_encode_decode_pydantic_model(self):
         """Test encoding and decoding of Pydantic models."""
@@ -85,9 +83,9 @@ class TestOrjsonCoder:
         assert isinstance(decoded, dict)
         assert decoded["id"] == 1
         assert decoded["name"] == "Test"
-        # datetime is now preserved as datetime object
-        assert isinstance(decoded["created_at"], datetime.datetime)
-        assert decoded["created_at"].year == 2024
+        # Without type hints, datetime becomes ISO string
+        assert isinstance(decoded["created_at"], str)
+        assert "2024-01-01" in decoded["created_at"]
 
     def test_decode_as_type_pydantic(self):
         """Test decoding with type hint for Pydantic model."""
@@ -118,16 +116,13 @@ class TestOrjsonCoder:
     def test_none_handling(self):
         """Test that None is properly handled to distinguish from cache miss."""
         coder = OrjsonCoder()
-        # None should be encoded with special marker
+        # None should be encoded as JSON null
         encoded = coder.encode(None)
         decoded = coder.decode(encoded)
         assert decoded is None
 
-        # The encoded value should contain our special marker
-        import orjson
-
-        raw = orjson.loads(encoded)
-        assert raw == {"_spec_type": "none"}
+        # The encoded value should be JSON null
+        assert encoded == b"null"
 
     def test_import_error_without_orjson(self, monkeypatch):
         """Test that proper error is raised when orjson is not installed."""
