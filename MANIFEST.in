@@ -1,0 +1,11 @@
+include README.md
+include LICENSE
+recursive-include pydantic_cache *.py
+recursive-include tests *.py
+exclude .github
+exclude .git
+exclude .gitignore
+exclude .pre-commit-config.yaml
+prune .idea
+prune __pycache__
+prune *.egg-info
