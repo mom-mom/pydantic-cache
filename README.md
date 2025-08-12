@@ -2,6 +2,8 @@
 
 An async cache library for Pydantic models without FastAPI dependencies. This library provides a simple decorator-based caching mechanism for async functions that return Pydantic models or other Python objects.
 
+> **Note**: This project was inspired by [fastapi-cache](https://github.com/long2ice/fastapi-cache) but designed to work independently of FastAPI/Starlette, making it suitable for any async Python application.
+
 ## Features
 
 - 🚀 Simple decorator-based caching for async functions
@@ -379,6 +381,10 @@ async def test_caching(cache_setup):
     assert result1 == result2
     assert call_count == 1  # Called only once due to caching
 ```
+
+## Acknowledgments
+
+This project was inspired by [fastapi-cache](https://github.com/long2ice/fastapi-cache) by @long2ice. While fastapi-cache provides excellent caching capabilities for FastAPI applications, pydantic-cache was created to offer similar functionality for general async Python applications without the FastAPI/Starlette dependency.
 
 ## License
 

@@ -1,16 +1,34 @@
 [project]
 name = "pydantic-cache"
-version = "0.1.0"
+version = "1.0.0"
 description = "Async cache library for Pydantic models without FastAPI dependencies"
-authors = [{name = "Your Name", email = "your.email@example.com"}]
+authors = [{name = "Wonderweeks Company", email = "dev@mom-mom.net"}]
 license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.13,<4.0"
+keywords = ["cache", "pydantic", "async", "redis", "asyncio", "decorator"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Framework :: Pydantic",
+    "Framework :: AsyncIO",
+]
 dependencies = [
     "pydantic>=2.11.7",
     "redis>=5.0.0",
     "pendulum>=3.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/wonderweeks/pydantic-cache"
+Documentation = "https://github.com/wonderweeks/pydantic-cache#readme"
+Repository = "https://github.com/wonderweeks/pydantic-cache.git"
+Issues = "https://github.com/wonderweeks/pydantic-cache/issues"
+Inspiration = "https://github.com/long2ice/fastapi-cache"
 
 [dependency-groups]
 dev = [
