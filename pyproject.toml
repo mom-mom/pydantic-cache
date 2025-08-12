@@ -1,5 +1,5 @@
 [project]
-name = "pydantic-cache"
+name = "pydantic-typed-cache"
 version = "1.0.0"
 description = "Async cache library for Pydantic models without FastAPI dependencies"
 authors = [{name = "Wonderweeks Company", email = "dev@mom-mom.net"}]

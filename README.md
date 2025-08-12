@@ -1,4 +1,4 @@
-# Pydantic Cache
+# Pydantic Typed Cache
 
 An async cache library for Pydantic models without FastAPI dependencies. This library provides a simple decorator-based caching mechanism for async functions that return Pydantic models or other Python objects.
 
@@ -20,7 +20,7 @@ An async cache library for Pydantic models without FastAPI dependencies. This li
 ## Installation
 
 ```bash
-pip install pydantic-cache
+pip install pydantic-typed-cache
 ```
 
 ## Quick Start
@@ -384,7 +384,7 @@ async def test_caching(cache_setup):
 
 ## Acknowledgments
 
-This project was inspired by [fastapi-cache](https://github.com/long2ice/fastapi-cache) by @long2ice. While fastapi-cache provides excellent caching capabilities for FastAPI applications, pydantic-cache was created to offer similar functionality for general async Python applications without the FastAPI/Starlette dependency.
+This project was inspired by [fastapi-cache](https://github.com/long2ice/fastapi-cache) by @long2ice. While fastapi-cache provides excellent caching capabilities for FastAPI applications, pydantic-typed-cache was created to offer similar functionality for general async Python applications without the FastAPI/Starlette dependency.
 
 ## License
 
