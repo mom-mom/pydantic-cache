@@ -24,10 +24,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/wonderweeks/pydantic-cache"
-Documentation = "https://github.com/wonderweeks/pydantic-cache#readme"
-Repository = "https://github.com/wonderweeks/pydantic-cache.git"
-Issues = "https://github.com/wonderweeks/pydantic-cache/issues"
+Homepage = "https://github.com/mom-mom/pydantic-cache"
+Documentation = "https://github.com/mom-mom/pydantic-cache#readme"
+Repository = "https://github.com/mom-mom/pydantic-cache.git"
+Issues = "https://github.com/mom-mom/pydantic-cache/issues"
 Inspiration = "https://github.com/long2ice/fastapi-cache"
 
 [dependency-groups]
