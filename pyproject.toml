@@ -1,6 +1,6 @@
 [project]
 name = "pydantic-typed-cache"
-version = "1.0.0"
+version = "0.1.0"
 description = "Async cache library for Pydantic models without FastAPI dependencies"
 authors = [{name = "Wonderweeks Company", email = "dev@mom-mom.net"}]
 license = {text = "MIT"}
@@ -30,7 +30,7 @@ Repository = "https://github.com/mom-mom/pydantic-cache.git"
 Issues = "https://github.com/mom-mom/pydantic-cache/issues"
 Inspiration = "https://github.com/long2ice/fastapi-cache"
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
