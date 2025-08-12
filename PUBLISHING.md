@@ -44,8 +44,8 @@ Or manually trigger via GitHub Actions UI.
 
 3. **Create and push a tag**:
    ```bash
-   git tag -a v0.1.0 -m "Release version 0.1.0"
-   git push origin v0.1.0
+   git tag -a 1.0.0 -m "Release version 1.0.0"
+   git push origin 1.0.0
    ```
 
 4. **Create a GitHub Release**:
@@ -90,11 +90,13 @@ pip install --index-url https://test.pypi.org/simple/ pydantic-typed-cache
 
 ## Version Management
 
-Follow semantic versioning:
+Follow semantic versioning (without 'v' prefix):
 - `0.1.x` - Initial development, API may change
 - `1.0.0` - First stable release
 - `1.x.y` - Backward compatible changes
 - `2.0.0` - Breaking changes
+
+Note: Tags use plain version numbers (e.g., `1.0.0` not `v1.0.0`)
 
 ## Security Notes
 
