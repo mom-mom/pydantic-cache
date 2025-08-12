@@ -247,6 +247,40 @@ async def my_function():
 | OrjsonCoder | Fast | ✅ | Small | Production, large data |
 | PickleCoder | Fast | ❌ | Medium | Complex objects |
 
+### Custom Serialization
+
+You can extend coders to handle custom types that aren't JSON-serializable by default:
+
+```python
+from pydantic_cache import OrjsonCoder
+
+# Example: MongoDB ObjectId handling
+class CustomOrjsonCoder(OrjsonCoder):
+    @classmethod
+    def _serialize_value(cls, value):
+        # Handle ObjectId or any custom type
+        if isinstance(value, ObjectId):
+            return str(value)
+        
+        # Handle nested structures recursively
+        if isinstance(value, dict):
+            return {k: cls._serialize_value(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [cls._serialize_value(item) for item in value]
+        
+        # Fall back to parent implementation
+        return super()._serialize_value(value)
+
+# Use the custom coder
+@cache(coder=CustomOrjsonCoder)
+async def get_document(doc_id: str) -> dict:
+    return {
+        "_id": ObjectId(doc_id),
+        "name": "Document",
+        "tags": [ObjectId("..."), ObjectId("...")]
+    }
+```
+
 ## Cache Management
 
 ```python

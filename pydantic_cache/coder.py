@@ -148,6 +148,17 @@ class OrjsonCoder(Coder):
     """
 
     @classmethod
+    def _serialize_value(cls, value: Any) -> Any:
+        """Convert value to a JSON-serializable format.
+
+        Override this method in subclasses to handle custom types.
+        """
+        # Convert Pydantic models to dict for consistent serialization
+        if isinstance(value, BaseModel):
+            return value.model_dump()
+        return value
+
+    @classmethod
     def encode(cls, value: Any) -> bytes:
         try:
             import orjson
@@ -162,11 +173,9 @@ class OrjsonCoder(Coder):
         if value is None:
             return orjson.dumps({"_spec_type": "none"})
 
-        # Convert Pydantic models to dict for consistent serialization
-        if isinstance(value, BaseModel):
-            return orjson.dumps(value.model_dump())
-
-        return orjson.dumps(value)
+        # Use the _serialize_value method which can be overridden
+        serializable_value = cls._serialize_value(value)
+        return orjson.dumps(serializable_value)
 
     @classmethod
     def decode(cls, value: bytes) -> Any:
