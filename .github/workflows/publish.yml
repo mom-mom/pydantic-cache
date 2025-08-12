@@ -3,9 +3,6 @@ name: Publish Python 🐍 distribution 📦 to PyPI
 on:
   release:
     types: [published]
-  push:
-    tags:
-      - '[0-9]+.[0-9]+.[0-9]+'  # 1.0.0, 2.1.3 등의 태그에 반응 (v 없음)
 
 permissions:
   id-token: write  # OIDC 인증에 필수
