@@ -6,8 +6,7 @@ from decimal import Decimal
 import pytest
 from pydantic import BaseModel
 
-from pydantic_cache import JsonCoder, OrjsonCoder
-from pydantic_cache.coder import JsonEncoder
+from pydantic_cache import JsonCoder, OrjsonCoder, PydanticJsonEncoder
 
 
 class TestModel(BaseModel):
@@ -120,7 +119,7 @@ class TestCoderConsistency:
             def __init__(self, value):
                 self.value = value
 
-        class CustomEncoder(JsonEncoder):
+        class CustomEncoder(PydanticJsonEncoder):
             def default(self, obj):
                 if isinstance(obj, CustomType):
                     return {"custom": obj.value}

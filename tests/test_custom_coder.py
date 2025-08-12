@@ -1,7 +1,6 @@
 import pytest
 
-from pydantic_cache import OrjsonCoder
-from pydantic_cache.coder import JsonEncoder
+from pydantic_cache import OrjsonCoder, PydanticJsonEncoder
 
 
 class CustomId:
@@ -17,7 +16,7 @@ class CustomId:
         return isinstance(other, CustomId) and self.value == other.value
 
 
-class CustomIdEncoder(JsonEncoder):
+class CustomIdEncoder(PydanticJsonEncoder):
     """Custom encoder for CustomId objects."""
 
     def default(self, obj):

@@ -1,4 +1,4 @@
-from pydantic_cache.coder import Coder, JsonCoder, OrjsonCoder, PickleCoder
+from pydantic_cache.coder import Coder, JsonCoder, OrjsonCoder, PickleCoder, PydanticJsonEncoder
 from pydantic_cache.decorator import cache
 from pydantic_cache.key_builder import default_key_builder
 from pydantic_cache.types import Backend, KeyBuilder
@@ -13,6 +13,7 @@ __all__ = [
     "OrjsonCoder",
     "PickleCoder",
     "PydanticCache",
+    "PydanticJsonEncoder",
     "cache",
     "default_key_builder",
 ]

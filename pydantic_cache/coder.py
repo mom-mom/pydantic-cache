@@ -16,7 +16,7 @@ from pydantic_core import to_jsonable_python
 _T = TypeVar("_T", bound=type)
 
 
-class JsonEncoder(json.JSONEncoder):
+class PydanticJsonEncoder(json.JSONEncoder):
     """Custom JSON encoder that handles Pydantic models and other special types.
 
     This can be subclassed to add custom serialization logic while preserving
@@ -111,9 +111,9 @@ class JsonCoder(Coder):
 
         Args:
             encoder_class: Custom JSONEncoder subclass. If not provided,
-                          uses the default JsonEncoder class.
+                          uses the default PydanticJsonEncoder class.
         """
-        self.encoder_class = encoder_class or JsonEncoder
+        self.encoder_class = encoder_class or PydanticJsonEncoder
 
     def encode(self, value: Any) -> bytes:
         # Use actual JSON null for None values
@@ -165,7 +165,7 @@ class OrjsonCoder(JsonCoder):
 
         Args:
             encoder_class: Custom JSONEncoder subclass. If not provided,
-                          uses the default JsonEncoder class.
+                          uses the default PydanticJsonEncoder class.
             option: orjson options flags (e.g., orjson.OPT_INDENT_2)
         """
         super().__init__(encoder_class)

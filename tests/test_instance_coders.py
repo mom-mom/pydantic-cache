@@ -6,8 +6,7 @@ from decimal import Decimal
 import pytest
 from pydantic import BaseModel
 
-from pydantic_cache import JsonCoder, OrjsonCoder, PickleCoder
-from pydantic_cache.coder import JsonEncoder
+from pydantic_cache import JsonCoder, OrjsonCoder, PickleCoder, PydanticJsonEncoder
 
 
 class CustomModel(BaseModel):
@@ -26,8 +25,8 @@ def custom_default(obj):
     raise TypeError
 
 
-class CustomJsonEncoderClass(JsonEncoder):
-    """Custom encoder class that extends JsonEncoder."""
+class CustomJsonEncoderClass(PydanticJsonEncoder):
+    """Custom encoder class that extends PydanticJsonEncoder."""
 
     def default(self, obj):
         if isinstance(obj, Decimal):
@@ -85,7 +84,7 @@ class TestInstanceBasedCoders:
             def __init__(self, name: str):
                 self.name = name
 
-        class CustomOrjsonEncoder(JsonEncoder):
+        class CustomOrjsonEncoder(PydanticJsonEncoder):
             def default(self, obj):
                 if isinstance(obj, CustomType):
                     return {"type": "custom", "name": obj.name}
@@ -178,7 +177,7 @@ class TestInstanceBasedCoders:
             def __init__(self, val):
                 self.val = val
 
-        class SpecialEncoder(JsonEncoder):
+        class SpecialEncoder(PydanticJsonEncoder):
             def default(self, obj):
                 if isinstance(obj, SpecialValue):
                     return f"special:{obj.val}"
