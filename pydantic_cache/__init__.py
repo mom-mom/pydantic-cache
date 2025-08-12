@@ -1,5 +1,3 @@
-from typing import Optional, Type
-
 from pydantic_cache.coder import Coder, JsonCoder, PickleCoder
 from pydantic_cache.decorator import cache
 from pydantic_cache.key_builder import default_key_builder
@@ -8,22 +6,22 @@ from pydantic_cache.types import Backend, KeyBuilder
 __version__ = "0.1.0"
 
 __all__ = [
-    "PydanticCache",
-    "cache",
     "Backend",
-    "KeyBuilder",
     "Coder",
     "JsonCoder",
+    "KeyBuilder",
     "PickleCoder",
+    "PydanticCache",
+    "cache",
     "default_key_builder",
 ]
 
 
 class PydanticCache:
-    _backend: Optional[Backend] = None
+    _backend: Backend | None = None
     _prefix: str = ""
     _expire: int = 60
-    _coder: Type[Coder] = JsonCoder
+    _coder: type[Coder] = JsonCoder
     _key_builder: KeyBuilder = default_key_builder
     _enable: bool = True
 
@@ -34,13 +32,13 @@ class PydanticCache:
         *,
         prefix: str = "",
         expire: int = 60,
-        coder: Optional[Type[Coder]] = None,
-        key_builder: Optional[KeyBuilder] = None,
+        coder: type[Coder] | None = None,
+        key_builder: KeyBuilder | None = None,
         enable: bool = True,
     ) -> None:
         """
         Initialize PydanticCache with a backend and configuration.
-        
+
         Args:
             backend: Cache backend implementation
             prefix: Prefix for all cache keys
@@ -61,9 +59,7 @@ class PydanticCache:
     @classmethod
     def get_backend(cls) -> Backend:
         if cls._backend is None:
-            raise RuntimeError(
-                "PydanticCache not initialized. Call PydanticCache.init() first."
-            )
+            raise RuntimeError("PydanticCache not initialized. Call PydanticCache.init() first.")
         return cls._backend
 
     @classmethod
@@ -75,7 +71,7 @@ class PydanticCache:
         return cls._expire
 
     @classmethod
-    def get_coder(cls) -> Type[Coder]:
+    def get_coder(cls) -> type[Coder]:
         return cls._coder
 
     @classmethod
@@ -91,14 +87,14 @@ class PydanticCache:
         cls._enable = enable
 
     @classmethod
-    async def clear(cls, namespace: Optional[str] = None, key: Optional[str] = None) -> int:
+    async def clear(cls, namespace: str | None = None, key: str | None = None) -> int:
         """
         Clear cache entries.
-        
+
         Args:
             namespace: Clear all keys in this namespace
             key: Clear a specific key
-            
+
         Returns:
             Number of keys cleared
         """

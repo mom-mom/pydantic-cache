@@ -1,18 +1,15 @@
 import datetime
 import json
 import pickle  # nosec:B403
+from collections.abc import Callable
 from decimal import Decimal
 from typing import (
     Any,
-    Callable,
-    ClassVar,
-    Dict,
-    Optional,
     TypeVar,
     Union,
-    overload,
     get_args,
     get_origin,
+    overload,
 )
 
 import pendulum
@@ -21,7 +18,7 @@ from pydantic.json import pydantic_encoder
 
 _T = TypeVar("_T", bound=type)
 
-CONVERTERS: Dict[str, Callable[[str], Any]] = {
+CONVERTERS: dict[str, Callable[[str], Any]] = {
     "date": lambda x: pendulum.parse(x, exact=True),
     "datetime": lambda x: pendulum.parse(x, exact=True),
     "decimal": Decimal,
@@ -72,22 +69,20 @@ class Coder:
 
     @overload
     @classmethod
-    def decode_as_type(cls, value: bytes, *, type_: _T) -> _T:
-        ...
+    def decode_as_type(cls, value: bytes, *, type_: _T) -> _T: ...
 
     @overload
     @classmethod
-    def decode_as_type(cls, value: bytes, *, type_: None) -> Any:
-        ...
+    def decode_as_type(cls, value: bytes, *, type_: None) -> Any: ...
 
     @classmethod
-    def decode_as_type(cls, value: bytes, *, type_: Optional[_T]) -> Union[_T, Any]:
+    def decode_as_type(cls, value: bytes, *, type_: _T | None) -> _T | Any:
         """Decode value to the specific given type
-        
+
         The default implementation tries to convert the value using Pydantic if it's a BaseModel.
         """
         result = cls.decode(value)
-        
+
         if type_ is not None:
             # Handle Optional types (Union[X, None])
             origin = get_origin(type_)
@@ -104,7 +99,7 @@ class Coder:
                         return result
                     # Otherwise try to convert to the actual type
                     type_ = actual_type
-            
+
             # If type_ is a Pydantic BaseModel, try to parse it
             try:
                 if isinstance(type_, type) and issubclass(type_, BaseModel):
@@ -112,7 +107,7 @@ class Coder:
                         return type_.model_validate(result)  # type: ignore
             except Exception:
                 pass
-        
+
         return result
 
 
@@ -137,9 +132,9 @@ class PickleCoder(Coder):
 
     @classmethod
     def decode(cls, value: bytes) -> Any:
-        return pickle.loads(value)  # noqa: S301
+        return pickle.loads(value)
 
     @classmethod
-    def decode_as_type(cls, value: bytes, *, type_: Optional[_T]) -> Any:
+    def decode_as_type(cls, value: bytes, *, type_: _T | None) -> Any:
         # Pickle already produces the correct type on decoding
         return cls.decode(value)

@@ -1,24 +1,15 @@
 import asyncio
+import functools
 import logging
-import sys
+from collections.abc import Awaitable, Callable
 from functools import wraps
 from inspect import isawaitable, iscoroutinefunction
 from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Optional,
-    Type,
+    ParamSpec,
     TypeVar,
-    Union,
     cast,
     get_type_hints,
 )
-
-if sys.version_info >= (3, 10):
-    from typing import ParamSpec
-else:
-    from typing_extensions import ParamSpec
 
 from pydantic_cache.coder import Coder
 from pydantic_cache.sentinel import CACHE_MISS
@@ -31,9 +22,9 @@ R = TypeVar("R")
 
 
 def cache(
-    expire: Optional[int] = None,
-    coder: Optional[Type[Coder]] = None,
-    key_builder: Optional[KeyBuilder] = None,
+    expire: int | None = None,
+    coder: type[Coder] | None = None,
+    key_builder: KeyBuilder | None = None,
     namespace: str = "",
 ) -> Callable[[Callable[P, Awaitable[R]]], Callable[P, Awaitable[R]]]:
     """
@@ -67,13 +58,12 @@ def cache(
                 else:
                     # sync, wrap in thread and return async
                     loop = asyncio.get_event_loop()
-                    import functools
                     partial_func = functools.partial(func, *args, **kwargs)
                     return await loop.run_in_executor(None, partial_func)  # type: ignore
 
             # Import here to avoid circular import
             from pydantic_cache import PydanticCache
-            
+
             if not PydanticCache.get_enable():
                 return await ensure_async_func(*args, **kwargs)
 
@@ -91,10 +81,10 @@ def cache(
             )
             if isawaitable(cache_key):
                 cache_key = await cache_key
-            assert isinstance(cache_key, str)  # noqa: S101
+            assert isinstance(cache_key, str)
 
             try:
-                ttl, cached = await backend.get_with_ttl(cache_key)
+                _, cached = await backend.get_with_ttl(cache_key)
             except Exception:
                 logger.warning(
                     f"Error retrieving cache key '{cache_key}' from backend:",

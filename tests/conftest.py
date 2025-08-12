@@ -1,5 +1,5 @@
-import pytest
 import pytest_asyncio
+
 from pydantic_cache import PydanticCache
 from pydantic_cache.backends.inmemory import InMemoryBackend
 
@@ -16,12 +16,7 @@ async def inmemory_backend():
 @pytest_asyncio.fixture
 async def cache_setup(inmemory_backend):
     """Setup cache with in-memory backend."""
-    PydanticCache.init(
-        inmemory_backend,
-        prefix="test",
-        expire=60,
-        enable=True
-    )
+    PydanticCache.init(inmemory_backend, prefix="test", expire=60, enable=True)
     yield
     # Cleanup
     await PydanticCache.clear()
