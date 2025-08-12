@@ -1,0 +1,122 @@
+import asyncio
+import logging
+import sys
+from functools import wraps
+from inspect import isawaitable, iscoroutinefunction
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    get_type_hints,
+)
+
+if sys.version_info >= (3, 10):
+    from typing import ParamSpec
+else:
+    from typing_extensions import ParamSpec
+
+from pydantic_cache.coder import Coder
+from pydantic_cache.types import KeyBuilder
+
+logger: logging.Logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def cache(
+    expire: Optional[int] = None,
+    coder: Optional[Type[Coder]] = None,
+    key_builder: Optional[KeyBuilder] = None,
+    namespace: str = "",
+) -> Callable[[Callable[P, Awaitable[R]]], Callable[P, Awaitable[R]]]:
+    """
+    Cache decorator for async functions
+    :param namespace: cache key namespace
+    :param expire: cache expiration time in seconds
+    :param coder: encoder/decoder for cache values
+    :param key_builder: function to build cache keys
+    :return: decorated function
+    """
+
+    def wrapper(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
+        # Get return type hint if available
+        try:
+            type_hints = get_type_hints(func)
+            return_type = type_hints.get("return", None)
+        except Exception:
+            return_type = None
+
+        @wraps(func)
+        async def inner(*args: P.args, **kwargs: P.kwargs) -> R:
+            nonlocal coder
+            nonlocal expire
+            nonlocal key_builder
+
+            async def ensure_async_func(*args: P.args, **kwargs: P.kwargs) -> R:
+                """Run sync functions in thread pool for compatibility."""
+                if iscoroutinefunction(func):
+                    # async, return as is
+                    return await func(*args, **kwargs)
+                else:
+                    # sync, wrap in thread and return async
+                    loop = asyncio.get_event_loop()
+                    import functools
+                    partial_func = functools.partial(func, *args, **kwargs)
+                    return await loop.run_in_executor(None, partial_func)  # type: ignore
+
+            # Import here to avoid circular import
+            from pydantic_cache import PydanticCache
+            
+            if not PydanticCache.get_enable():
+                return await ensure_async_func(*args, **kwargs)
+
+            prefix = PydanticCache.get_prefix()
+            coder = coder or PydanticCache.get_coder()
+            expire = expire or PydanticCache.get_expire()
+            key_builder = key_builder or PydanticCache.get_key_builder()
+            backend = PydanticCache.get_backend()
+
+            cache_key = key_builder(
+                func,
+                f"{prefix}:{namespace}",
+                args=args,
+                kwargs=kwargs,
+            )
+            if isawaitable(cache_key):
+                cache_key = await cache_key
+            assert isinstance(cache_key, str)  # noqa: S101
+
+            try:
+                ttl, cached = await backend.get_with_ttl(cache_key)
+            except Exception:
+                logger.warning(
+                    f"Error retrieving cache key '{cache_key}' from backend:",
+                    exc_info=True,
+                )
+                ttl, cached = 0, None
+
+            if cached is None:  # cache miss
+                result = await ensure_async_func(*args, **kwargs)
+                to_cache = coder.encode(result)
+
+                try:
+                    await backend.set(cache_key, to_cache, expire)
+                except Exception:
+                    logger.warning(
+                        f"Error setting cache key '{cache_key}' in backend:",
+                        exc_info=True,
+                    )
+            else:  # cache hit
+                result = cast(R, coder.decode_as_type(cached, type_=return_type))
+
+            return result
+
+        return inner
+
+    return wrapper
