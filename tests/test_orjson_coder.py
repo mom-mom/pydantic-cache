@@ -64,13 +64,16 @@ class TestOrjsonCoder:
     def test_encode_decode_datetime(self):
         """Test encoding and decoding of datetime objects."""
         coder = OrjsonCoder()
-        # orjson automatically handles datetime
+        # Now properly preserves datetime type like JsonCoder
         now = datetime.datetime.now()
         encoded = coder.encode(now)
         decoded = coder.decode(encoded)
-        # orjson returns datetime as ISO format string
-        assert isinstance(decoded, str)
-        assert now.isoformat().startswith(decoded[:19])
+        # Should be preserved as datetime, not string
+        assert isinstance(decoded, datetime.datetime)
+        # Pendulum may add timezone, so compare the base values
+        assert decoded.year == now.year
+        assert decoded.month == now.month
+        assert decoded.day == now.day
 
     def test_encode_decode_pydantic_model(self):
         """Test encoding and decoding of Pydantic models."""
@@ -82,8 +85,9 @@ class TestOrjsonCoder:
         assert isinstance(decoded, dict)
         assert decoded["id"] == 1
         assert decoded["name"] == "Test"
-        # datetime is serialized as string
-        assert "2024-01-01" in decoded["created_at"]
+        # datetime is now preserved as datetime object
+        assert isinstance(decoded["created_at"], datetime.datetime)
+        assert decoded["created_at"].year == 2024
 
     def test_decode_as_type_pydantic(self):
         """Test decoding with type hint for Pydantic model."""

@@ -179,16 +179,23 @@ class OrjsonCoder(Coder):
     Requires: pip install pydantic-typed-cache[orjson]
     """
 
-    def __init__(self, default: Callable[[Any], Any] | None = None, option: int | None = None):
+    def __init__(
+        self,
+        default: Callable[[Any], Any] | None = None,
+        object_hook: Callable[[dict], Any] | None = None,
+        option: int | None = None,
+    ):
         """Initialize OrjsonCoder with optional custom default function.
 
         Args:
             default: Function to handle non-serializable types. It will be called
                     recursively for nested structures. Should return a serializable
                     value or raise TypeError.
+            object_hook: Custom object hook for decoding
             option: orjson options flags (e.g., orjson.OPT_INDENT_2)
         """
         self.custom_default = default
+        self.object_hook = object_hook or globals()["object_hook"]  # Use the module-level object_hook
         self.option = option
         self._orjson = None  # Lazy import
 
@@ -207,7 +214,7 @@ class OrjsonCoder(Coder):
         return self._orjson
 
     def _default_handler(self, obj: Any) -> Any:
-        """Default handler that processes nested structures and custom types."""
+        """Default handler that processes custom types not handled by preprocessing."""
         # First try custom handler if provided
         if self.custom_default is not None:
             try:
@@ -215,12 +222,38 @@ class OrjsonCoder(Coder):
             except TypeError:
                 pass  # Fall through to built-in handling
 
-        # Built-in handling for Pydantic models
+        # datetime/date/decimal are handled by _preprocess_value
+        # Only handle types that weren't preprocessed
         if isinstance(obj, BaseModel):
             return obj.model_dump()
 
+        # Try pydantic_core conversion
+        try:
+            return to_jsonable_python(obj)
+        except TypeError:
+            pass
+
         # Let orjson handle the error for truly unserializable types
         raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+    def _preprocess_value(self, value: Any) -> Any:
+        """Pre-process value to handle types that orjson handles natively."""
+        if isinstance(value, datetime.datetime):
+            return {"val": str(value), "_spec_type": "datetime"}
+        elif isinstance(value, datetime.date):
+            return {"val": str(value), "_spec_type": "date"}
+        elif isinstance(value, Decimal):
+            return {"val": str(value), "_spec_type": "decimal"}
+        elif isinstance(value, BaseModel):
+            # Convert model to dict and recursively preprocess
+            return self._preprocess_value(value.model_dump())
+        elif isinstance(value, dict):
+            return {k: self._preprocess_value(v) for k, v in value.items()}
+        elif isinstance(value, list):
+            return [self._preprocess_value(item) for item in value]
+        elif isinstance(value, tuple):
+            return tuple(self._preprocess_value(item) for item in value)
+        return value
 
     def encode(self, value: Any) -> bytes:
         orjson = self._ensure_orjson()
@@ -229,8 +262,24 @@ class OrjsonCoder(Coder):
         if value is None:
             return orjson.dumps({"_spec_type": "none"}, option=self.option)
 
+        # Pre-process to handle datetime/date/decimal consistently with JsonCoder
+        value = self._preprocess_value(value)
+
         # Use the default handler for custom types and nested structures
         return orjson.dumps(value, default=self._default_handler, option=self.option)
+
+    def _apply_object_hook(self, obj: Any) -> Any:
+        """Recursively apply object_hook to nested structures."""
+        if isinstance(obj, dict):
+            # First apply hook to this dict
+            obj = self.object_hook(obj)
+            # If hook didn't transform it, recursively apply to values
+            if isinstance(obj, dict):
+                return {k: self._apply_object_hook(v) for k, v in obj.items()}
+            return obj
+        elif isinstance(obj, list):
+            return [self._apply_object_hook(item) for item in obj]
+        return obj
 
     def decode(self, value: bytes) -> Any:
         orjson = self._ensure_orjson()
@@ -238,8 +287,5 @@ class OrjsonCoder(Coder):
         # orjson.loads returns dict directly (not str)
         data = orjson.loads(value)
 
-        # Handle our special None encoding
-        if isinstance(data, dict) and data.get("_spec_type") == "none":
-            return None
-
-        return data
+        # Apply object_hook recursively (like standard json does)
+        return self._apply_object_hook(data)
