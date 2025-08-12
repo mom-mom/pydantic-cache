@@ -1,6 +1,7 @@
 import time
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 
+from pydantic_cache.sentinel import CACHE_MISS
 from pydantic_cache.types import Backend
 
 
@@ -10,9 +11,9 @@ class InMemoryBackend(Backend):
     def __init__(self):
         self._cache: Dict[str, Tuple[bytes, Optional[float]]] = {}
     
-    async def get_with_ttl(self, key: str) -> Tuple[int, Optional[bytes]]:
+    async def get_with_ttl(self, key: str) -> Tuple[int, Union[bytes, Any]]:
         if key not in self._cache:
-            return 0, None
+            return 0, CACHE_MISS
         
         value, expire_time = self._cache[key]
         
@@ -22,13 +23,16 @@ class InMemoryBackend(Backend):
         current_time = time.time()
         if current_time >= expire_time:
             del self._cache[key]
-            return 0, None
+            return 0, CACHE_MISS
         
         ttl = int(expire_time - current_time)
         return ttl, value
     
     async def get(self, key: str) -> Optional[bytes]:
         _, value = await self.get_with_ttl(key)
+        # Convert CACHE_MISS to None for backward compatibility
+        if value is CACHE_MISS:
+            return None
         return value
     
     async def set(self, key: str, value: bytes, expire: Optional[int] = None) -> None:

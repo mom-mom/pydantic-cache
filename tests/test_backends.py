@@ -3,6 +3,7 @@ import time
 
 import pytest
 from pydantic_cache.backends.inmemory import InMemoryBackend
+from pydantic_cache.sentinel import CACHE_MISS
 
 
 class TestInMemoryBackend:
@@ -44,7 +45,7 @@ class TestInMemoryBackend:
         # Test non-existent key
         ttl, value = await backend.get_with_ttl("nonexistent")
         assert ttl == 0
-        assert value is None
+        assert value is CACHE_MISS
         
         # Test key without expiration
         await backend.set("key1", b"value1")

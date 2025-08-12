@@ -12,7 +12,7 @@ dependencies = [
     "pendulum>=3.0.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",

@@ -21,6 +21,7 @@ else:
     from typing_extensions import ParamSpec
 
 from pydantic_cache.coder import Coder
+from pydantic_cache.sentinel import CACHE_MISS
 from pydantic_cache.types import KeyBuilder
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -99,9 +100,9 @@ def cache(
                     f"Error retrieving cache key '{cache_key}' from backend:",
                     exc_info=True,
                 )
-                ttl, cached = 0, None
+                ttl, cached = 0, CACHE_MISS
 
-            if cached is None:  # cache miss
+            if cached is CACHE_MISS:  # cache miss
                 result = await ensure_async_func(*args, **kwargs)
                 to_cache = coder.encode(result)
 

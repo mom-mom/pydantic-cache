@@ -20,7 +20,8 @@ class KeyBuilder(Protocol):
 
 class Backend(abc.ABC):
     @abc.abstractmethod
-    async def get_with_ttl(self, key: str) -> Tuple[int, Optional[bytes]]:
+    async def get_with_ttl(self, key: str) -> Tuple[int, Any]:
+        """Get value with TTL. Returns (ttl, value) or (0, CACHE_MISS) if not found."""
         raise NotImplementedError
 
     @abc.abstractmethod

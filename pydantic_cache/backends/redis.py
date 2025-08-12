@@ -1,8 +1,9 @@
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 from redis.asyncio.client import Redis
 from redis.asyncio.cluster import RedisCluster
 
+from pydantic_cache.sentinel import CACHE_MISS
 from pydantic_cache.types import Backend
 
 
@@ -11,9 +12,12 @@ class RedisBackend(Backend):
         self.redis = redis
         self.is_cluster: bool = isinstance(redis, RedisCluster)
 
-    async def get_with_ttl(self, key: str) -> Tuple[int, Optional[bytes]]:
+    async def get_with_ttl(self, key: str) -> Tuple[int, Union[bytes, Any]]:
         async with self.redis.pipeline(transaction=not self.is_cluster) as pipe:
-            return await pipe.ttl(key).get(key).execute()  # type: ignore[union-attr,no-any-return]
+            ttl, value = await pipe.ttl(key).get(key).execute()  # type: ignore[union-attr]
+            if value is None:
+                return 0, CACHE_MISS
+            return ttl, value
 
     async def get(self, key: str) -> Optional[bytes]:
         return await self.redis.get(key)  # type: ignore[union-attr]

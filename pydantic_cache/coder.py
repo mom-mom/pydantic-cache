@@ -11,6 +11,8 @@ from typing import (
     TypeVar,
     Union,
     overload,
+    get_args,
+    get_origin,
 )
 
 import pendulum
@@ -28,7 +30,10 @@ CONVERTERS: Dict[str, Callable[[str], Any]] = {
 
 class JsonEncoder(json.JSONEncoder):
     def default(self, o: Any) -> Any:
-        if isinstance(o, datetime.datetime):
+        if o is None:
+            # Explicitly mark None values
+            return {"_spec_type": "none"}
+        elif isinstance(o, datetime.datetime):
             return {"val": str(o), "_spec_type": "datetime"}
         elif isinstance(o, datetime.date):
             return {"val": str(o), "_spec_type": "date"}
@@ -48,7 +53,9 @@ def object_hook(obj: Any) -> Any:
     if not _spec_type:
         return obj
 
-    if _spec_type in CONVERTERS:
+    if _spec_type == "none":
+        return None
+    elif _spec_type in CONVERTERS:
         return CONVERTERS[_spec_type](obj["val"])
     else:
         raise TypeError(f"Unknown {_spec_type}")
@@ -82,6 +89,22 @@ class Coder:
         result = cls.decode(value)
         
         if type_ is not None:
+            # Handle Optional types (Union[X, None])
+            origin = get_origin(type_)
+            if origin is Union:
+                # Get the non-None type from Optional
+                args = get_args(type_)
+                # Filter out NoneType
+                non_none_types = [t for t in args if t is not type(None)]
+                if len(non_none_types) == 1:
+                    # This is Optional[T], extract T
+                    actual_type = non_none_types[0]
+                    # If result is None, return it as is
+                    if result is None:
+                        return result
+                    # Otherwise try to convert to the actual type
+                    type_ = actual_type
+            
             # If type_ is a Pydantic BaseModel, try to parse it
             try:
                 if isinstance(type_, type) and issubclass(type_, BaseModel):
@@ -96,6 +119,9 @@ class Coder:
 class JsonCoder(Coder):
     @classmethod
     def encode(cls, value: Any) -> bytes:
+        # Handle None directly to ensure proper encoding
+        if value is None:
+            return json.dumps({"_spec_type": "none"}).encode()
         return json.dumps(value, cls=JsonEncoder).encode()
 
     @classmethod
