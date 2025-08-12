@@ -105,3 +105,6 @@ known-first-party = ["pydantic_cache"]
     "PLC0415", # Allow late import to avoid circular dependencies
     "PLR0915", # Allow many statements in decorator functions
 ]
+"pydantic_cache/coder.py" = [
+    "PLC0415", # Allow late import for optional dependencies (orjson)
+]
