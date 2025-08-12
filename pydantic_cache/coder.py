@@ -15,7 +15,7 @@ from typing import (
 
 import pendulum
 from pydantic import BaseModel
-from pydantic.json import pydantic_encoder
+from pydantic_core import to_jsonable_python
 
 _T = TypeVar("_T", bound=type)
 
@@ -41,7 +41,7 @@ class JsonEncoder(json.JSONEncoder):
             return o.model_dump()
         else:
             try:
-                return pydantic_encoder(o)
+                return to_jsonable_python(o)
             except TypeError:
                 return super().default(o)
 

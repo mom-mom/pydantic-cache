@@ -5,13 +5,14 @@ from collections.abc import Awaitable, Callable
 from functools import wraps
 from inspect import isawaitable, iscoroutinefunction
 from typing import (
+    Any,
     ParamSpec,
     TypeVar,
     cast,
     get_type_hints,
 )
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 from pydantic_cache.coder import Coder
 from pydantic_cache.sentinel import CACHE_MISS
@@ -28,7 +29,7 @@ def cache(
     coder: type[Coder] | None = None,
     key_builder: KeyBuilder | None = None,
     namespace: str = "",
-    model: type[BaseModel] | None = None,
+    model: Any = None,
 ) -> Callable[[Callable[P, Awaitable[R]]], Callable[P, Awaitable[R]]]:
     """
     Cache decorator for async functions
@@ -36,7 +37,7 @@ def cache(
     :param expire: cache expiration time in seconds
     :param coder: encoder/decoder for cache values
     :param key_builder: function to build cache keys
-    :param model: optional Pydantic model to force conversion of cached values
+    :param model: optional type to force conversion of cached values (can be any type)
     :return: decorated function
     """
 
@@ -105,19 +106,16 @@ def cache(
                 # If model is specified, convert result to model before caching
                 if model is not None and result is not None:
                     try:
-                        if isinstance(result, dict):
-                            result = model.model_validate(result)
-                        elif isinstance(result, BaseModel):
-                            # Convert one Pydantic model to another
-                            result = model.model_validate(result.model_dump())
-                        elif not isinstance(result, model):
-                            # Try to convert if it's not already the model type
-                            result = model.model_validate(result)
+                        # Use TypeAdapter for any type conversion
+                        adapter = TypeAdapter(model)
+                        # If result is a BaseModel, dump it first for proper conversion
+                        if isinstance(result, BaseModel):
+                            result = adapter.validate_python(result.model_dump())
+                        else:
+                            result = adapter.validate_python(result)
                     except Exception:
                         # Keep original result if conversion fails
-                        logger.debug(
-                            f"Failed to convert result to {model.__name__}, keeping original type", exc_info=True
-                        )
+                        logger.debug(f"Failed to convert result to {model}, keeping original type", exc_info=True)
 
                 to_cache = coder.encode(result)
 

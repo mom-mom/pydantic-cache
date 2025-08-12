@@ -189,6 +189,67 @@ async def example_model_override():
     assert isinstance(api_data_cached, APIResponse)
 
 
+async def example_type_conversion():
+    """Example showing type conversion with primitive and complex types."""
+    backend = InMemoryBackend()
+    PydanticCache.init(backend, prefix="type_conversion", expire=60)
+
+    # Convert string to int
+    @cache(namespace="numbers", model=int)
+    async def get_count_as_string() -> str:
+        """Returns a string that will be converted to int."""
+        print("Fetching count...")
+        return "42"
+
+    # Convert list of strings to list of ints
+    @cache(namespace="lists", model=list[int])
+    async def get_scores() -> list[str]:
+        """Returns string scores that will be converted to ints."""
+        print("Fetching scores...")
+        return ["95", "87", "92", "100"]
+
+    # Using Union types
+    @cache(namespace="union", model=int | str)
+    async def get_flexible_value(use_number: bool) -> any:
+        """Returns either a number or string based on input."""
+        print(f"Fetching flexible value (number={use_number})...")
+        return 123 if use_number else "hello"
+
+    # Using Optional types
+    @cache(namespace="optional", model=int | None)
+    async def get_optional_count(value: str | None) -> str | None:
+        """Converts string to int or preserves None."""
+        print(f"Processing optional value: {value}")
+        return value
+
+    # Test conversions
+    print("--- Primitive Type Conversion ---")
+    count = await get_count_as_string()
+    print(f"String '42' converted to int: {count}, type: {type(count).__name__}")
+
+    count_cached = await get_count_as_string()  # From cache
+    print(f"Cached value: {count_cached}, type: {type(count_cached).__name__}")
+
+    print("\n--- List Type Conversion ---")
+    scores = await get_scores()
+    print(f"String list converted to int list: {scores}")
+    print(f"All integers: {all(isinstance(x, int) for x in scores)}")
+
+    print("\n--- Union Type ---")
+    num_value = await get_flexible_value(True)
+    print(f"Number branch: {num_value}, type: {type(num_value).__name__}")
+
+    str_value = await get_flexible_value(False)
+    print(f"String branch: {str_value}, type: {type(str_value).__name__}")
+
+    print("\n--- Optional Type ---")
+    optional_none = await get_optional_count(None)
+    print(f"None value: {optional_none}")
+
+    optional_value = await get_optional_count("789")
+    print(f"String '789' converted to Optional[int]: {optional_value}, type: {type(optional_value).__name__}")
+
+
 if __name__ == "__main__":
     print("=" * 50)
     print("In-Memory Backend Example")
@@ -204,6 +265,11 @@ if __name__ == "__main__":
     print("Model Override Example")
     print("=" * 50)
     asyncio.run(example_model_override())
+
+    print("\n" + "=" * 50)
+    print("Type Conversion Example")
+    print("=" * 50)
+    asyncio.run(example_type_conversion())
 
     # Uncomment to test Redis backend (requires Redis server)
     # print("\n" + "=" * 50)
