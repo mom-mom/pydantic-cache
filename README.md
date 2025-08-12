@@ -230,12 +230,21 @@ PydanticCache.init(backend, coder=OrjsonCoder)
 ```python
 from pydantic_cache.coder import JsonCoder, OrjsonCoder, PickleCoder
 
-# Set globally
-PydanticCache.init(backend, coder=OrjsonCoder)  # Recommended
+# Set globally with default instance
+PydanticCache.init(backend, coder=OrjsonCoder())  # Recommended
+
+# Or with custom configuration
+custom_coder = OrjsonCoder(default=my_handler)
+PydanticCache.init(backend, coder=custom_coder)
 
 # Or per decorator
-@cache(coder=JsonCoder)
+@cache(coder=JsonCoder())  # Default configuration
 async def my_function():
+    pass
+
+# Or with custom configuration per function
+@cache(coder=JsonCoder(default=my_handler))
+async def my_other_function():
     pass
 ```
 
@@ -249,36 +258,64 @@ async def my_function():
 
 ### Custom Serialization
 
-You can extend coders to handle custom types that aren't JSON-serializable by default:
+All coders now support instance-based configuration for custom serialization:
+
+#### OrjsonCoder with Custom Types
 
 ```python
 from pydantic_cache import OrjsonCoder
 
-# Example: MongoDB ObjectId handling
-class CustomOrjsonCoder(OrjsonCoder):
-    @classmethod
-    def _serialize_value(cls, value):
-        # Handle ObjectId or any custom type
-        if isinstance(value, ObjectId):
-            return str(value)
-        
-        # Handle nested structures recursively
-        if isinstance(value, dict):
-            return {k: cls._serialize_value(v) for k, v in value.items()}
-        if isinstance(value, (list, tuple)):
-            return [cls._serialize_value(item) for item in value]
-        
-        # Fall back to parent implementation
-        return super()._serialize_value(value)
+# Define handler for non-serializable types
+def handle_objectid(obj):
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    raise TypeError  # Let orjson handle other types
 
-# Use the custom coder
-@cache(coder=CustomOrjsonCoder)
+# Create coder instance with custom handler
+custom_coder = OrjsonCoder(default=handle_objectid)
+
+# Use with decorator
+@cache(coder=custom_coder)
 async def get_document(doc_id: str) -> dict:
     return {
         "_id": ObjectId(doc_id),
         "name": "Document",
-        "tags": [ObjectId("..."), ObjectId("...")]
+        "tags": [ObjectId("..."), ObjectId("...")]  # Nested structures handled automatically
     }
+```
+
+#### JsonCoder with Custom Handler
+
+```python
+from pydantic_cache import JsonCoder
+
+def handle_custom_types(obj):
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    if isinstance(obj, Decimal):
+        return float(obj)  # Convert to float instead of string
+    raise TypeError  # Let default encoder handle other types
+
+# Create coder with custom handler (same interface as OrjsonCoder!)
+custom_coder = JsonCoder(default=handle_custom_types)
+
+@cache(coder=custom_coder)
+async def get_data():
+    return {"id": ObjectId("..."), "price": Decimal("99.99")}
+```
+
+#### PickleCoder with Protocol Version
+
+```python
+from pydantic_cache import PickleCoder
+import pickle
+
+# Use specific protocol version
+coder = PickleCoder(protocol=pickle.HIGHEST_PROTOCOL)
+
+@cache(coder=coder)
+async def get_complex_object():
+    return complex_python_object
 ```
 
 ## Cache Management

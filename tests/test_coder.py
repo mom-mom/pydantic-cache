@@ -15,73 +15,79 @@ class SampleModel(BaseModel):
 
 class TestJsonCoder:
     def test_encode_decode_simple_types(self):
+        coder = JsonCoder()
         # Test string
-        encoded = JsonCoder.encode("hello world")
-        decoded = JsonCoder.decode(encoded)
+        encoded = coder.encode("hello world")
+        decoded = coder.decode(encoded)
         assert decoded == "hello world"
 
         # Test int
-        encoded = JsonCoder.encode(42)
-        decoded = JsonCoder.decode(encoded)
+        encoded = coder.encode(42)
+        decoded = coder.decode(encoded)
         assert decoded == 42
 
         # Test float
-        encoded = JsonCoder.encode(3.14)
-        decoded = JsonCoder.decode(encoded)
+        encoded = coder.encode(3.14)
+        decoded = coder.decode(encoded)
         assert decoded == 3.14
 
         # Test bool
-        encoded = JsonCoder.encode(True)
-        decoded = JsonCoder.decode(encoded)
+        encoded = coder.encode(True)
+        decoded = coder.decode(encoded)
         assert decoded is True
 
         # Test None
-        encoded = JsonCoder.encode(None)
-        decoded = JsonCoder.decode(encoded)
+        encoded = coder.encode(None)
+        decoded = coder.decode(encoded)
         assert decoded is None
 
     def test_encode_decode_collections(self):
+        coder = JsonCoder()
         # Test list
         data = [1, 2, 3, "hello", {"key": "value"}]
-        encoded = JsonCoder.encode(data)
-        decoded = JsonCoder.decode(encoded)
+        encoded = coder.encode(data)
+        decoded = coder.decode(encoded)
         assert decoded == data
 
         # Test dict
         data = {"name": "test", "values": [1, 2, 3], "nested": {"a": 1}}
-        encoded = JsonCoder.encode(data)
-        decoded = JsonCoder.decode(encoded)
+        encoded = coder.encode(data)
+        decoded = coder.decode(encoded)
         assert decoded == data
 
     def test_encode_decode_datetime(self):
+        coder = JsonCoder()
         dt = datetime.datetime(2024, 1, 1, 12, 0, 0)
-        encoded = JsonCoder.encode(dt)
-        decoded = JsonCoder.decode(encoded)
+        encoded = coder.encode(dt)
+        decoded = coder.decode(encoded)
         assert decoded.year == 2024
         assert decoded.month == 1
         assert decoded.day == 1
         assert decoded.hour == 12
 
     def test_encode_decode_date(self):
+        coder = JsonCoder()
         d = datetime.date(2024, 1, 1)
-        encoded = JsonCoder.encode(d)
-        decoded = JsonCoder.decode(encoded)
+        encoded = coder.encode(d)
+        decoded = coder.decode(encoded)
         assert decoded.year == 2024
         assert decoded.month == 1
         assert decoded.day == 1
 
     def test_encode_decode_decimal(self):
+        coder = JsonCoder()
         dec = Decimal("123.45")
-        encoded = JsonCoder.encode(dec)
-        decoded = JsonCoder.decode(encoded)
+        encoded = coder.encode(dec)
+        decoded = coder.decode(encoded)
         assert decoded == dec
         assert isinstance(decoded, Decimal)
 
     def test_encode_decode_pydantic_model(self):
+        coder = JsonCoder()
         model = SampleModel(id=1, name="Test", created_at=datetime.datetime(2024, 1, 1), price=Decimal("99.99"))
 
-        encoded = JsonCoder.encode(model)
-        decoded = JsonCoder.decode(encoded)
+        encoded = coder.encode(model)
+        decoded = coder.decode(encoded)
 
         # JsonCoder returns dict, not the model instance
         assert decoded["id"] == 1
@@ -90,10 +96,11 @@ class TestJsonCoder:
         assert decoded["price"] == Decimal("99.99")
 
     def test_decode_as_type_pydantic(self):
+        coder = JsonCoder()
         model = SampleModel(id=1, name="Test", created_at=datetime.datetime(2024, 1, 1), price=Decimal("99.99"))
 
-        encoded = JsonCoder.encode(model)
-        decoded = JsonCoder.decode_as_type(encoded, type_=SampleModel)
+        encoded = coder.encode(model)
+        decoded = coder.decode_as_type(encoded, type_=SampleModel)
 
         # With type hint, should attempt to parse as Pydantic model
         assert isinstance(decoded, (dict, SampleModel))
@@ -104,6 +111,7 @@ class TestJsonCoder:
 
 class TestPickleCoder:
     def test_encode_decode_simple_types(self):
+        coder = PickleCoder()
         # Test various types
         test_values = [
             "hello world",
@@ -116,22 +124,24 @@ class TestPickleCoder:
         ]
 
         for value in test_values:
-            encoded = PickleCoder.encode(value)
-            decoded = PickleCoder.decode(encoded)
+            encoded = coder.encode(value)
+            decoded = coder.decode(encoded)
             assert decoded == value
 
     def test_encode_decode_datetime(self):
+        coder = PickleCoder()
         dt = datetime.datetime(2024, 1, 1, 12, 0, 0)
-        encoded = PickleCoder.encode(dt)
-        decoded = PickleCoder.decode(encoded)
+        encoded = coder.encode(dt)
+        decoded = coder.decode(encoded)
         assert decoded == dt
         assert isinstance(decoded, datetime.datetime)
 
     def test_encode_decode_pydantic_model(self):
+        coder = PickleCoder()
         model = SampleModel(id=1, name="Test", created_at=datetime.datetime(2024, 1, 1), price=Decimal("99.99"))
 
-        encoded = PickleCoder.encode(model)
-        decoded = PickleCoder.decode(encoded)
+        encoded = coder.encode(model)
+        decoded = coder.decode(encoded)
 
         # Pickle preserves the exact type
         assert isinstance(decoded, SampleModel)
@@ -141,15 +151,17 @@ class TestPickleCoder:
         assert decoded.price == Decimal("99.99")
 
     def test_decode_as_type(self):
+        coder = PickleCoder()
         # PickleCoder's decode_as_type ignores type hint
         model = SampleModel(id=1, name="Test")
-        encoded = PickleCoder.encode(model)
-        decoded = PickleCoder.decode_as_type(encoded, type_=dict)
+        encoded = coder.encode(model)
+        decoded = coder.decode_as_type(encoded, type_=dict)
 
         # Still returns SampleModel, not dict
         assert isinstance(decoded, SampleModel)
 
     def test_complex_nested_structure(self):
+        coder = PickleCoder()
         data = {
             "models": [
                 SampleModel(id=1, name="First"),
@@ -162,8 +174,8 @@ class TestPickleCoder:
             },
         }
 
-        encoded = PickleCoder.encode(data)
-        decoded = PickleCoder.decode(encoded)
+        encoded = coder.encode(data)
+        decoded = coder.decode(encoded)
 
         assert len(decoded["models"]) == 2
         assert all(isinstance(m, SampleModel) for m in decoded["models"])

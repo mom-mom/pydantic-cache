@@ -16,29 +16,11 @@ class CustomId:
         return isinstance(other, CustomId) and self.value == other.value
 
 
-class CustomOrjsonCoder(OrjsonCoder):
-    """Extended OrjsonCoder that handles CustomId objects."""
-
-    @classmethod
-    def _serialize_value(cls, value):
-        # Handle CustomId objects
-        if isinstance(value, CustomId):
-            return str(value)
-
-        # Handle nested structures with CustomId
-        if isinstance(value, dict):
-            return {k: cls._serialize_value(v) for k, v in value.items()}
-        if isinstance(value, (list, tuple)):
-            return [cls._serialize_value(item) for item in value]
-
-        # Fall back to parent implementation
-        return super()._serialize_value(value)
-
-    @classmethod
-    def decode(cls, value: bytes):
-        # For this test, we'll just decode normally
-        # In a real implementation, you might want to recreate CustomId objects
-        return super().decode(value)
+def handle_custom_id(obj):
+    """Custom handler for CustomId objects."""
+    if isinstance(obj, CustomId):
+        return str(obj)
+    raise TypeError
 
 
 @pytest.mark.asyncio
@@ -46,10 +28,13 @@ async def test_custom_orjson_coder():
     """Test that custom OrjsonCoder can handle non-JSON serializable types."""
     pytest.importorskip("orjson")
 
+    # Create an OrjsonCoder with custom handler
+    custom_coder = OrjsonCoder(default=handle_custom_id)
+
     # Test with a CustomId object
     custom_id = CustomId("abc123")
-    encoded = CustomOrjsonCoder.encode(custom_id)
-    decoded = CustomOrjsonCoder.decode(encoded)
+    encoded = custom_coder.encode(custom_id)
+    decoded = custom_coder.decode(encoded)
     assert decoded == "abc123"  # It's decoded as string
 
     # Test with nested structure containing CustomId
@@ -59,8 +44,8 @@ async def test_custom_orjson_coder():
         "metadata": {"owner_id": CustomId("owner123"), "name": "Test"},
     }
 
-    encoded = CustomOrjsonCoder.encode(data)
-    decoded = CustomOrjsonCoder.decode(encoded)
+    encoded = custom_coder.encode(data)
+    decoded = custom_coder.decode(encoded)
 
     assert decoded == {
         "id": "xyz789",
@@ -69,8 +54,8 @@ async def test_custom_orjson_coder():
     }
 
     # Test None handling still works
-    encoded = CustomOrjsonCoder.encode(None)
-    decoded = CustomOrjsonCoder.decode(encoded)
+    encoded = custom_coder.encode(None)
+    decoded = custom_coder.decode(encoded)
     assert decoded is None
 
 
@@ -85,7 +70,7 @@ async def test_custom_coder_with_cache_decorator():
     backend = InMemoryBackend()
     PydanticCache.init(backend=backend)
 
-    @cache(expire=60, coder=CustomOrjsonCoder)
+    @cache(expire=60, coder=OrjsonCoder(default=handle_custom_id))
     async def get_custom_object(obj_id: str) -> dict:
         return {"id": CustomId(obj_id), "name": f"Object {obj_id}"}
 

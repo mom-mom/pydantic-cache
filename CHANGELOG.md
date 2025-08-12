@@ -7,13 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.1] - 2025-01-12
 
+### Changed
+- **BREAKING**: Coders are now instance-based instead of class-based for better flexibility
+  - Both `JsonCoder` and `OrjsonCoder` now accept `default` function for custom type handling
+  - `JsonCoder` also accepts `object_hook` for custom decoding
+  - `OrjsonCoder` also accepts `option` parameter for orjson options
+  - `PickleCoder` now accepts `protocol` parameter
+  - Nested structure handling is now automatic in both JSON coders
+  - Consistent interface between JsonCoder and OrjsonCoder
+
 ### Added
-- Support for custom serialization in OrjsonCoder through `_serialize_value` method
-- Documentation for extending coders to handle non-JSON serializable types
+- Support for custom serialization through instance configuration
+- Comprehensive tests for instance-based coders
+- Documentation for new coder API
 
 ### Fixed
-- OrjsonCoder now properly supports subclassing for custom type handling
-- Improved extensibility for handling types like MongoDB ObjectId
+- Improved extensibility for handling custom types like MongoDB ObjectId
+- Cleaner architecture with better separation of concerns
 
 ## [1.0.0] - 2025-01-12
 

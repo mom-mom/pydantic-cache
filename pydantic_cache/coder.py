@@ -60,29 +60,31 @@ def object_hook(obj: Any) -> Any:
 
 
 class Coder:
-    @classmethod
-    def encode(cls, value: Any) -> bytes:
+    """Base class for encoding/decoding cache values.
+
+    Can be used both as class methods (for backward compatibility) or as instances.
+    """
+
+    def encode(self, value: Any) -> bytes:
+        """Encode a value to bytes for storage."""
         raise NotImplementedError
 
-    @classmethod
-    def decode(cls, value: bytes) -> Any:
+    def decode(self, value: bytes) -> Any:
+        """Decode bytes from storage to a value."""
         raise NotImplementedError
 
     @overload
-    @classmethod
-    def decode_as_type(cls, value: bytes, *, type_: _T) -> _T: ...
+    def decode_as_type(self, value: bytes, *, type_: _T) -> _T: ...
 
     @overload
-    @classmethod
-    def decode_as_type(cls, value: bytes, *, type_: None) -> Any: ...
+    def decode_as_type(self, value: bytes, *, type_: None) -> Any: ...
 
-    @classmethod
-    def decode_as_type(cls, value: bytes, *, type_: _T | None) -> _T | Any:
+    def decode_as_type(self, value: bytes, *, type_: _T | None) -> _T | Any:
         """Decode value to the specific given type
 
         The default implementation tries to convert the value using Pydantic if it's a BaseModel.
         """
-        result = cls.decode(value)
+        result = self.decode(value)
 
         if type_ is not None:
             # Handle Optional types (Union[X, None] or X | None)
@@ -113,32 +115,62 @@ class Coder:
 
 
 class JsonCoder(Coder):
-    @classmethod
-    def encode(cls, value: Any) -> bytes:
+    """JSON-based coder with customizable encoder."""
+
+    def __init__(self, default: Callable[[Any], Any] | None = None, object_hook: Callable[[dict], Any] | None = None):
+        """Initialize JsonCoder with optional custom handlers.
+
+        Args:
+            default: Function to handle non-serializable types
+            object_hook: Custom object hook for decoding
+        """
+        self.custom_default = default
+        self.object_hook = object_hook or globals()["object_hook"]  # Use the module-level object_hook
+
+    def encode(self, value: Any) -> bytes:
         # Handle None directly to ensure proper encoding
         if value is None:
             return json.dumps({"_spec_type": "none"}).encode()
-        return json.dumps(value, cls=JsonEncoder).encode()
 
-    @classmethod
-    def decode(cls, value: bytes) -> Any:
+        # Create a custom encoder that uses our default function
+        if self.custom_default:
+
+            class CustomEncoder(JsonEncoder):
+                def default(self_inner, obj):  # noqa: N805
+                    try:
+                        return self.custom_default(obj)
+                    except TypeError:
+                        return super().default(obj)
+
+            return json.dumps(value, cls=CustomEncoder).encode()
+        else:
+            return json.dumps(value, cls=JsonEncoder).encode()
+
+    def decode(self, value: bytes) -> Any:
         # explicitly decode from UTF-8 bytes first
-        return json.loads(value.decode(), object_hook=object_hook)
+        return json.loads(value.decode(), object_hook=self.object_hook)
 
 
 class PickleCoder(Coder):
-    @classmethod
-    def encode(cls, value: Any) -> bytes:
-        return pickle.dumps(value)
+    """Pickle-based coder for complex Python objects."""
 
-    @classmethod
-    def decode(cls, value: bytes) -> Any:
+    def __init__(self, protocol: int | None = None):
+        """Initialize PickleCoder with optional protocol version.
+
+        Args:
+            protocol: Pickle protocol version to use
+        """
+        self.protocol = protocol
+
+    def encode(self, value: Any) -> bytes:
+        return pickle.dumps(value, protocol=self.protocol)
+
+    def decode(self, value: bytes) -> Any:
         return pickle.loads(value)
 
-    @classmethod
-    def decode_as_type(cls, value: bytes, *, type_: _T | None) -> Any:
+    def decode_as_type(self, value: bytes, *, type_: _T | None) -> Any:
         # Pickle already produces the correct type on decoding
-        return cls.decode(value)
+        return self.decode(value)
 
 
 class OrjsonCoder(Coder):
@@ -147,45 +179,61 @@ class OrjsonCoder(Coder):
     Requires: pip install pydantic-typed-cache[orjson]
     """
 
-    @classmethod
-    def _serialize_value(cls, value: Any) -> Any:
-        """Convert value to a JSON-serializable format.
+    def __init__(self, default: Callable[[Any], Any] | None = None, option: int | None = None):
+        """Initialize OrjsonCoder with optional custom default function.
 
-        Override this method in subclasses to handle custom types.
+        Args:
+            default: Function to handle non-serializable types. It will be called
+                    recursively for nested structures. Should return a serializable
+                    value or raise TypeError.
+            option: orjson options flags (e.g., orjson.OPT_INDENT_2)
         """
-        # Convert Pydantic models to dict for consistent serialization
-        if isinstance(value, BaseModel):
-            return value.model_dump()
-        return value
+        self.custom_default = default
+        self.option = option
+        self._orjson = None  # Lazy import
 
-    @classmethod
-    def encode(cls, value: Any) -> bytes:
-        try:
-            import orjson
-        except ImportError as e:
-            raise ImportError(
-                "OrjsonCoder requires orjson to be installed. "
-                "Install it with: pip install pydantic-typed-cache[orjson]"
-            ) from e
+    def _ensure_orjson(self):
+        """Lazy import orjson."""
+        if self._orjson is None:
+            try:
+                import orjson
 
-        # orjson handles Pydantic models, datetime, etc. automatically
-        # But we need special handling for None to distinguish from cache miss
+                self._orjson = orjson
+            except ImportError as e:
+                raise ImportError(
+                    "OrjsonCoder requires orjson to be installed. "
+                    "Install it with: pip install pydantic-typed-cache[orjson]"
+                ) from e
+        return self._orjson
+
+    def _default_handler(self, obj: Any) -> Any:
+        """Default handler that processes nested structures and custom types."""
+        # First try custom handler if provided
+        if self.custom_default is not None:
+            try:
+                return self.custom_default(obj)
+            except TypeError:
+                pass  # Fall through to built-in handling
+
+        # Built-in handling for Pydantic models
+        if isinstance(obj, BaseModel):
+            return obj.model_dump()
+
+        # Let orjson handle the error for truly unserializable types
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+    def encode(self, value: Any) -> bytes:
+        orjson = self._ensure_orjson()
+
+        # Special handling for None to distinguish from cache miss
         if value is None:
-            return orjson.dumps({"_spec_type": "none"})
+            return orjson.dumps({"_spec_type": "none"}, option=self.option)
 
-        # Use the _serialize_value method which can be overridden
-        serializable_value = cls._serialize_value(value)
-        return orjson.dumps(serializable_value)
+        # Use the default handler for custom types and nested structures
+        return orjson.dumps(value, default=self._default_handler, option=self.option)
 
-    @classmethod
-    def decode(cls, value: bytes) -> Any:
-        try:
-            import orjson
-        except ImportError as e:
-            raise ImportError(
-                "OrjsonCoder requires orjson to be installed. "
-                "Install it with: pip install pydantic-typed-cache[orjson]"
-            ) from e
+    def decode(self, value: bytes) -> Any:
+        orjson = self._ensure_orjson()
 
         # orjson.loads returns dict directly (not str)
         data = orjson.loads(value)

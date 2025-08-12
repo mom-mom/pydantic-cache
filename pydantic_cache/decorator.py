@@ -26,7 +26,7 @@ R = TypeVar("R")
 
 def cache(
     expire: int | None = None,
-    coder: type[Coder] | None = None,
+    coder: type[Coder] | Coder | None = None,
     key_builder: KeyBuilder | None = None,
     namespace: str = "",
     model: Any = None,
@@ -76,7 +76,14 @@ def cache(
                 return await ensure_async_func(*args, **kwargs)
 
             prefix = PydanticCache.get_prefix()
-            coder = coder or PydanticCache.get_coder()
+            # Handle both class and instance coders
+            if coder is None:
+                coder = PydanticCache.get_coder()
+            elif isinstance(coder, type):
+                # If it's a class, instantiate it
+                coder = coder()
+            # else it's already an instance, use as-is
+
             expire = expire or PydanticCache.get_expire()
             key_builder = key_builder or PydanticCache.get_key_builder()
             backend = PydanticCache.get_backend()

@@ -22,7 +22,7 @@ class PydanticCache:
     _backend: Backend | None = None
     _prefix: str = ""
     _expire: int = 60
-    _coder: type[Coder] = JsonCoder
+    _coder: Coder | type[Coder] = JsonCoder
     _key_builder: KeyBuilder = default_key_builder
     _enable: bool = True
 
@@ -33,7 +33,7 @@ class PydanticCache:
         *,
         prefix: str = "",
         expire: int = 60,
-        coder: type[Coder] | None = None,
+        coder: type[Coder] | Coder | None = None,
         key_builder: KeyBuilder | None = None,
         enable: bool = True,
     ) -> None:
@@ -44,7 +44,7 @@ class PydanticCache:
             backend: Cache backend implementation
             prefix: Prefix for all cache keys
             expire: Default expiration time in seconds
-            coder: Encoder/decoder for cache values
+            coder: Encoder/decoder for cache values (class or instance)
             key_builder: Function to build cache keys
             enable: Enable/disable caching globally
         """
@@ -72,7 +72,10 @@ class PydanticCache:
         return cls._expire
 
     @classmethod
-    def get_coder(cls) -> type[Coder]:
+    def get_coder(cls) -> Coder:
+        # Return instance if already instantiated, or instantiate the class
+        if isinstance(cls._coder, type):
+            return cls._coder()
         return cls._coder
 
     @classmethod

@@ -20,60 +20,64 @@ class SampleModel(BaseModel):
 class TestOrjsonCoder:
     def test_encode_decode_simple_types(self):
         """Test encoding and decoding of simple types."""
+        coder = OrjsonCoder()
         # String
-        encoded = OrjsonCoder.encode("hello")
-        decoded = OrjsonCoder.decode(encoded)
+        encoded = coder.encode("hello")
+        decoded = coder.decode(encoded)
         assert decoded == "hello"
 
         # Integer
-        encoded = OrjsonCoder.encode(42)
-        decoded = OrjsonCoder.decode(encoded)
+        encoded = coder.encode(42)
+        decoded = coder.decode(encoded)
         assert decoded == 42
 
         # Float
-        encoded = OrjsonCoder.encode(3.14)
-        decoded = OrjsonCoder.decode(encoded)
+        encoded = coder.encode(3.14)
+        decoded = coder.decode(encoded)
         assert decoded == 3.14
 
         # Boolean
-        encoded = OrjsonCoder.encode(True)
-        decoded = OrjsonCoder.decode(encoded)
+        encoded = coder.encode(True)
+        decoded = coder.decode(encoded)
         assert decoded is True
 
         # None
-        encoded = OrjsonCoder.encode(None)
-        decoded = OrjsonCoder.decode(encoded)
+        encoded = coder.encode(None)
+        decoded = coder.decode(encoded)
         assert decoded is None
 
     def test_encode_decode_collections(self):
         """Test encoding and decoding of collections."""
+        coder = OrjsonCoder()
         # List
         data = [1, 2, 3, "hello", None]
-        encoded = OrjsonCoder.encode(data)
-        decoded = OrjsonCoder.decode(encoded)
+        encoded = coder.encode(data)
+        decoded = coder.decode(encoded)
         assert decoded == data
 
         # Dict
         data = {"key": "value", "number": 42, "nested": {"a": 1}}
-        encoded = OrjsonCoder.encode(data)
-        decoded = OrjsonCoder.decode(encoded)
+        encoded = coder.encode(data)
+        decoded = coder.decode(encoded)
         assert decoded == data
 
     def test_encode_decode_datetime(self):
         """Test encoding and decoding of datetime objects."""
+        coder = OrjsonCoder()
         # orjson automatically handles datetime
         now = datetime.datetime.now()
-        encoded = OrjsonCoder.encode(now)
-        decoded = OrjsonCoder.decode(encoded)
+        encoded = coder.encode(now)
+        decoded = coder.decode(encoded)
         # orjson returns datetime as ISO format string
         assert isinstance(decoded, str)
         assert now.isoformat().startswith(decoded[:19])
 
     def test_encode_decode_pydantic_model(self):
         """Test encoding and decoding of Pydantic models."""
+        coder = OrjsonCoder()
         model = SampleModel(id=1, name="Test", created_at=datetime.datetime(2024, 1, 1, 12, 0, 0))
-        encoded = OrjsonCoder.encode(model)
-        decoded = OrjsonCoder.decode(encoded)
+        encoded = coder.encode(model)
+        decoded = coder.decode(encoded)
 
         assert isinstance(decoded, dict)
         assert decoded["id"] == 1
@@ -83,23 +87,25 @@ class TestOrjsonCoder:
 
     def test_decode_as_type_pydantic(self):
         """Test decoding with type hint for Pydantic model."""
+        coder = OrjsonCoder()
         model = SampleModel(id=1, name="Test")
-        encoded = OrjsonCoder.encode(model)
+        encoded = coder.encode(model)
 
         # Decode with type hint
-        decoded = OrjsonCoder.decode_as_type(encoded, type_=SampleModel)
+        decoded = coder.decode_as_type(encoded, type_=SampleModel)
         assert isinstance(decoded, SampleModel)
         assert decoded.id == 1
         assert decoded.name == "Test"
 
     def test_performance_vs_json(self):
         """Test that OrjsonCoder works (performance test would need timing)."""
+        coder = OrjsonCoder()
         # Create a large dataset
         data = [{"id": i, "name": f"Item {i}", "values": list(range(10))} for i in range(100)]
 
         # Test encoding and decoding
-        encoded = OrjsonCoder.encode(data)
-        decoded = OrjsonCoder.decode(encoded)
+        encoded = coder.encode(data)
+        decoded = coder.decode(encoded)
 
         assert len(decoded) == 100
         assert decoded[0]["id"] == 0
@@ -107,9 +113,10 @@ class TestOrjsonCoder:
 
     def test_none_handling(self):
         """Test that None is properly handled to distinguish from cache miss."""
+        coder = OrjsonCoder()
         # None should be encoded with special marker
-        encoded = OrjsonCoder.encode(None)
-        decoded = OrjsonCoder.decode(encoded)
+        encoded = coder.encode(None)
+        decoded = coder.decode(encoded)
         assert decoded is None
 
         # The encoded value should contain our special marker
@@ -137,6 +144,7 @@ class TestOrjsonCoder:
         monkeypatch.setattr("builtins.__import__", mock_import)
 
         with pytest.raises(ImportError) as exc_info:
-            OrjsonCoder.encode("test")
+            coder = OrjsonCoder()
+            coder.encode("test")
 
         assert "pip install pydantic-typed-cache[orjson]" in str(exc_info.value)
