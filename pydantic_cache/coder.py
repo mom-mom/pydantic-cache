@@ -121,7 +121,7 @@ class JsonCoder(Coder):
             return b"null"
 
         # Convert to JSON with the encoder class
-        return json.dumps(value, cls=self.encoder_class).encode()
+        return json.dumps(value, cls=self.encoder_class, ensure_ascii=False).encode()
 
     def decode(self, value: bytes) -> Any:
         # JSON null becomes None automatically
